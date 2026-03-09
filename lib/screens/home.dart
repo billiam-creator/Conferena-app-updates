@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ticketkona/screens/token_entry.dart';
-import 'package:ticketkona/screens/events_list.dart';
+import 'package:ticketkona/screens/login.dart';
 import 'package:ticketkona/theme/colors.dart';
 
 class Home extends StatelessWidget {
@@ -91,37 +91,38 @@ class Home extends StatelessWidget {
               ),
 
               // NEW: view events list
-              Row(
-                children: [
-                  SizedBox(width: MediaQuery.of(context).size.width / 6),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: CustomColors.primaryColor,
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const EventsList(token: '',),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.event,
-                        color: CustomColors.textWhite,
-                      ),
-                      label: Text(
-                        'VIEW EVENTS',
-                        style: TextStyle(
-                          color: CustomColors.textWhite,
-                          fontSize: MediaQuery.of(context).size.width / 26,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: MediaQuery.of(context).size.width / 6),
-                ],
-              )
+              // LOGIN TO VIEW EVENTS
+Row(
+  children: [
+    SizedBox(width: MediaQuery.of(context).size.width / 6),
+    Expanded(
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: CustomColors.primaryColor,
+        ),
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const LoginPage(),
+            ),
+          );
+        },
+        icon: const Icon(
+          Icons.login,
+          color: CustomColors.textWhite,
+        ),
+        label: Text(
+          'LOGIN TO VIEW EVENTS',
+          style: TextStyle(
+            color: CustomColors.textWhite,
+            fontSize: MediaQuery.of(context).size.width / 26,
+          ),
+        ),
+      ),
+    ),
+    SizedBox(width: MediaQuery.of(context).size.width / 6),
+  ],
+)
             ],
           ),
         ),
