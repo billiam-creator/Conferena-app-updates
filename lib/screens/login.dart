@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 import '../widgets/my_button.dart';
 import '../widgets/my_textfield.dart';
+import 'package:ticketkona/screens/events_list.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,17 +18,58 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  void signUserIn() {
+ void signUserIn() async {
 
-    String email = emailController.text;
-    String password = passwordController.text;
+  String email = emailController.text.trim();
+  String password = passwordController.text.trim();
 
-    print("Email: $email");
-    print("Password: $password");
-
-    // API call will go here later
+  if(email.isEmpty || password.isEmpty){
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please enter email and password"))
+    );
+    return;
   }
 
+  try {
+
+    final response = await http.post(
+      Uri.parse('https://maji.brainversetechnologies.co.ke/api/login'),
+      body: {
+        'identity': email,
+        'password': password,
+      },
+    );
+
+    var data = jsonDecode(response.body);
+
+    if(response.statusCode == 200){
+
+      String token = data['access_token'];
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EventsList(token: token),
+        ),
+      );
+
+    }else{
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['message'] ?? "Login failed"))
+      );
+
+    }
+
+  } catch(e){
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e"))
+    );
+
+  }
+
+}
   @override
   void dispose() {
     emailController.dispose();
@@ -37,6 +82,7 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: Colors.grey[300],
+      
 
       body: SafeArea(
         child: Center(
