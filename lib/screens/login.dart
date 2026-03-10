@@ -17,68 +17,94 @@ class _LoginPageState extends State<LoginPage> {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
   bool isLoading = false;
 
-void signUserIn() async {
+  void signUserIn() async {
 
-  String email = emailController.text.trim();
-  String password = passwordController.text.trim();
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
 
-  if(email.isEmpty || password.isEmpty){
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please enter email and password"))
-    );
-    return;
-  }
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter email and password")),
+      );
+      return;
+    }
 
-  setState(() {
-    isLoading = true;
-  });
+    setState(() {
+      isLoading = true;
+    });
 
-  try {
+    try {
 
-    final response = await http.post(
-      Uri.parse('https://maji.brainversetechnologies.co.ke/api/login'),
-      body: {
-        'identity': email,
-        'password': password,
-      },
-    );
+      final response = await http
+          .post(
+            Uri.parse('https://maji.brainversetechnologies.co.ke/api/login'),
+            body: {
+              'identity': email,
+              'password': password,
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
-    var data = jsonDecode(response.body);
+      var data = jsonDecode(response.body);
 
-    if(response.statusCode == 200){
+      if (response.statusCode == 200 && data["status"] == 200) {
 
-      String token = data['access_token'];
+        String token = data['access_token'];
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EventsList(token: token),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventsList(token: token),
+          ),
+        );
+
+      } else {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message'] ?? "Login failed. Please try again.",
+            ),
+          ),
+        );
+
+      }
+
+    } on http.ClientException {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Unable to reach server. Please try again later."),
         ),
       );
 
-    }else{
+    } on FormatException {
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message'] ?? "Login failed"))
+        const SnackBar(
+          content: Text("Unexpected server response."),
+        ),
+      );
+
+    } on Exception {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Network error. Check your internet connection."),
+        ),
       );
 
     }
 
-  } catch(e){
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e"))
-    );
+    setState(() {
+      isLoading = false;
+    });
 
   }
 
-  setState(() {
-    isLoading = false;
-  });
-
-}
   @override
   void dispose() {
     emailController.dispose();
@@ -91,70 +117,71 @@ void signUserIn() async {
 
     return Scaffold(
       backgroundColor: Colors.grey[300],
-      
-body: SafeArea(
-  child: SingleChildScrollView(
-    child: Center(
-      child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
 
-              const SizedBox(height: 40),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
 
-              const Icon(
-                Icons.lock,
-                size: 100,
-              ),
+                const SizedBox(height: 40),
 
-              const SizedBox(height: 30),
-
-              Text(
-                "Sign in",
-                style: TextStyle(
-                  color: Colors.grey[800],
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                const Icon(
+                  Icons.lock,
+                  size: 100,
                 ),
-              ),
 
-              const SizedBox(height: 10),
+                const SizedBox(height: 30),
 
-              Text(
-                "Welcome back to Conferena",
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 16,
+                Text(
+                  "Sign in",
+                  style: TextStyle(
+                    color: Colors.grey[800],
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 25),
+                const SizedBox(height: 10),
 
-              MyTextfield(
-                controller: emailController,
-                hintText: 'Enter your email',
-                obscureText: false,
-              ),
+                Text(
+                  "Welcome back to Conferena",
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 16,
+                  ),
+                ),
 
-              const SizedBox(height: 15),
+                const SizedBox(height: 25),
 
-              MyTextfield(
-                controller: passwordController,
-                hintText: 'Enter your password',
-                obscureText: true,
-              ),
+                MyTextfield(
+                  controller: emailController,
+                  hintText: 'Enter your email',
+                  obscureText: false,
+                ),
 
-              const SizedBox(height: 25),
+                const SizedBox(height: 15),
 
-              isLoading
-    ? const CircularProgressIndicator()
-    : MyButton(
-        onTap: signUserIn,
-      ),
+                MyTextfield(
+                  controller: passwordController,
+                  hintText: 'Enter your password',
+                  obscureText: true,
+                ),
 
-            ],
+                const SizedBox(height: 25),
+
+                isLoading
+                    ? const CircularProgressIndicator()
+                    : MyButton(
+                        onTap: signUserIn,
+                      ),
+
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 }
