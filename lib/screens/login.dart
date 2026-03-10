@@ -17,8 +17,9 @@ class _LoginPageState extends State<LoginPage> {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  bool isLoading = false;
 
- void signUserIn() async {
+void signUserIn() async {
 
   String email = emailController.text.trim();
   String password = passwordController.text.trim();
@@ -29,6 +30,10 @@ class _LoginPageState extends State<LoginPage> {
     );
     return;
   }
+
+  setState(() {
+    isLoading = true;
+  });
 
   try {
 
@@ -68,6 +73,10 @@ class _LoginPageState extends State<LoginPage> {
     );
 
   }
+
+  setState(() {
+    isLoading = false;
+  });
 
 }
   @override
@@ -136,9 +145,11 @@ body: SafeArea(
 
               const SizedBox(height: 25),
 
-              MyButton(
-                onTap: signUserIn,
-              ),
+              isLoading
+    ? const CircularProgressIndicator()
+    : MyButton(
+        onTap: signUserIn,
+      ),
 
             ],
           ),
