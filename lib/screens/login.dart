@@ -116,21 +116,37 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-      backgroundColor: Colors.grey[300],
+  backgroundColor: Colors.grey[300],
 
-      body: SafeArea(
+  
+
+  body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Row(
+                  
+  children: [
+    
+    IconButton(
+      
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        Navigator.pop(context);
+      },
+      
+    ),
+  ],
+),
 
                 const SizedBox(height: 40),
 
-                const Icon(
-                  Icons.lock,
-                  size: 100,
-                ),
+                Image.asset(
+  'assets/images/logo.png',
+  height: 100,
+),
 
                 const SizedBox(height: 30),
 
@@ -168,6 +184,17 @@ class _LoginPageState extends State<LoginPage> {
                   hintText: 'Enter your password',
                   obscureText: true,
                 ),
+                const SizedBox(height: 10,),
+                TextButton(
+  onPressed: () {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please contact admin to reset password."),
+      ),
+    );
+  },
+  child: const Text("Forgot Password?"),
+),
 
                 const SizedBox(height: 25),
 

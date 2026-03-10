@@ -30,10 +30,21 @@ class _EventsListState extends State<EventsList> {
 
       final response = await EventService().fetchEvents(widget.token);
 
-      setState(() {
-        events = [response];
-        loading = false;
-      });
+      if (response['status'] == 200 && response['data'] != null) {
+
+        setState(() {
+          events = [response['data']];
+          loading = false;
+        });
+
+      } else {
+
+        setState(() {
+          events = [];
+          loading = false;
+        });
+
+      }
 
     } catch (e) {
 
@@ -42,8 +53,9 @@ class _EventsListState extends State<EventsList> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to load events"))
+        const SnackBar(content: Text("Unable to load events. Please try again.")),
       );
+      
     }
   }
 
@@ -61,53 +73,144 @@ class _EventsListState extends State<EventsList> {
 
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
 
-              itemCount: events.length,
+          // EMPTY STATE UI
+          : events.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
 
-              itemBuilder: (context, index) {
+                      Icon(
+                        Icons.event_busy,
+                        size: 90,
+                        color: Colors.grey,
+                      ),
 
-                final event = events[index]['data'];
+                      SizedBox(height: 20),
 
-                return Card(
+                      Text(
+                        "No events assigned yet",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
 
-                  margin: const EdgeInsets.all(12),
+                      SizedBox(height: 10),
 
-                  child: ListTile(
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 40),
+                        child: Text(
+                          "Please contact the organizer if you should have access to an event.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
 
-                    title: Text(event['event_name']),
+                    ],
+                  ),
+                )
 
-                    subtitle: Text(event['event_location'] ?? "No location"),
+              // EVENTS LIST
+              : ListView.builder(
 
-                    trailing: const Icon(Icons.qr_code_scanner),
+                  padding: const EdgeInsets.all(12),
 
-                    onTap: () {
+                  itemCount: events.length,
 
-                      Navigator.push(
+                  itemBuilder: (context, index) {
 
-                        context,
+                    final event = events[index];
 
-                        MaterialPageRoute(
+                    return Card(
 
-                         builder: (context) => ScanCode(
-                         event: event,
-                        token: widget.token,
-                        eventToken: event['ticket_scanning_token'],
-                              ),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
 
+                      margin: const EdgeInsets.only(bottom: 15),
+
+                      child: ListTile(
+
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+
+                        title: Text(
+                          event['event_name'] ?? "Event",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
 
-                      );
+                        subtitle: Row(
+                          children: [
 
-                    },
+                            const Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
 
-                  ),
+                            const SizedBox(width: 4),
 
-                );
+                            Expanded(
+                              child: Text(
+                                event['event_location'] ?? "No location",
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ),
 
-              },
+                          ],
+                        ),
 
-            ),
+                        trailing: Container(
+
+                          padding: const EdgeInsets.all(8),
+
+                          decoration: BoxDecoration(
+                            color: CustomColors.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+
+                          child: const Icon(
+                            Icons.qr_code_scanner,
+                            color: CustomColors.primaryColor,
+                          ),
+                        ),
+
+                        onTap: () {
+
+                          Navigator.push(
+
+                            context,
+
+                            MaterialPageRoute(
+
+                              builder: (context) => ScanCode(
+                                event: event,
+                                token: widget.token,
+                                eventToken: event['ticket_scanning_token'],
+                              ),
+
+                            ),
+
+                          );
+
+                        },
+
+                      ),
+
+                    );
+
+                  },
+
+                ),
     );
   }
 }
