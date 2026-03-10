@@ -7,12 +7,14 @@ import 'dart:convert';
 class ScanCode extends StatefulWidget {
   final Map event;
   final String token;
+final String eventToken;
 
-  const ScanCode({
-    super.key,
-    required this.event,
-    required this.token, required eventToken,
-  });
+const ScanCode({
+  super.key,
+  required this.event,
+  required this.token,
+  required this.eventToken,
+});
 
   @override
   State<ScanCode> createState() => _ScanCodeState();
@@ -32,7 +34,7 @@ class _ScanCodeState extends State<ScanCode> {
   @override
   void initState() {
     super.initState();
-    final count = widget.event['data']['bookings_count'];
+    final count = widget.event['bookings_count'];
     bookingCount = count != null ? count.toString() : '0';
   }
 
@@ -90,7 +92,7 @@ class _ScanCodeState extends State<ScanCode> {
             ),
             SizedBox(height: MediaQuery.of(context).size.height / 55),
             Text(
-              widget.event['data']['event_name'],
+              widget.event['event_name'],
               style: TextStyle(
                 color: CustomColors.textBlack,
                 fontSize: MediaQuery.of(context).size.width / 18,
@@ -99,7 +101,7 @@ class _ScanCodeState extends State<ScanCode> {
             ),
             SizedBox(height: MediaQuery.of(context).size.height / 40),
             Text(
-              widget.event['data']['event_description'],
+              widget.event['event_name'],
               style: TextStyle(
                 color: CustomColors.textGrey,
                 fontSize: MediaQuery.of(context).size.width / 26,
