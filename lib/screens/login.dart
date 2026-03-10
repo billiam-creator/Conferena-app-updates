@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
 
       final response = await http
           .post(
-            Uri.parse('https://maji.brainversetechnologies.co.ke/api/login'),
+            Uri.parse('https://bemmas.brainversetechnologies.co.ke/api/login'),
             body: {
               'identity': email,
               'password': password,
