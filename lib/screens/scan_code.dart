@@ -253,7 +253,7 @@ class _ScanCodeState extends State<ScanCode> {
           scanCount = null;
         });
 
-        validateTicket(widget.token, scanData.code as String).then((value) {
+        validateTicket(widget.eventToken, scanData.code as String).then((value) {
           if (value['status'] == 200) {
             var data;
             try {

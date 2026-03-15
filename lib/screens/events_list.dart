@@ -25,40 +25,55 @@ class _EventsListState extends State<EventsList> {
   }
 
   // Fetch events from API
-  fetchEvents() async {
-    try {
+ fetchEvents() async {
 
-      final response = await EventService().fetchEvents(widget.token);
+  print("FETCH EVENTS STARTED");
 
-      if (response['status'] == 200 && response['data'] != null) {
+  try {
 
-        setState(() {
-          events = [response['data']];
-          loading = false;
-        });
+    final response = await EventService().fetchEvents(widget.token);
 
-      } else {
+    print("EVENT API RESPONSE: $response");
 
-        setState(() {
-          events = [];
-          loading = false;
-        });
-
-      }
-
-    } catch (e) {
+    if (response['status'] == 200) {
 
       setState(() {
+
+        events = response['data'] ?? [];
+
         loading = false;
+
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Unable to load events. Please try again.")),
-      );
-      
+    } else {
+
+      setState(() {
+
+        events = [];
+
+        loading = false;
+
+      });
+
     }
+
+  } catch (e) {
+
+    print("EVENT FETCH ERROR: $e");
+
+    setState(() {
+      loading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Unable to load events."),
+      ),
+    );
+
   }
 
+}
   @override
   Widget build(BuildContext context) {
 
@@ -124,7 +139,7 @@ class _EventsListState extends State<EventsList> {
 
                   itemBuilder: (context, index) {
 
-                    final event = events[index];
+                    final Map event = events[index];
 
                     return Card(
 

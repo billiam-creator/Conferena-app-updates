@@ -21,7 +21,7 @@ class _TokenEntryState extends State<TokenEntry> {
   late Map event;
 
   fetchEvent(String token) async {
-    return await EventService().fetchEvent(token);
+    return await EventService().fetchEvents(token);
   }
 
   @override
