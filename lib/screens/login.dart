@@ -20,6 +20,22 @@ class _LoginPageState extends State<LoginPage> {
 
   bool isLoading = false;
 
+  // Extract ci_session value from Set-Cookie response header
+  String? _extractSessionCookie(http.Response response) {
+    final rawCookie = response.headers['set-cookie'];
+    print("RAW SET-COOKIE HEADER: $rawCookie");
+    if (rawCookie == null) return null;
+
+    // set-cookie can look like:
+    // ci_session=abc123; Path=/; HttpOnly
+    final match = RegExp(r'ci_session=([^;]+)').firstMatch(rawCookie);
+    if (match != null) {
+      print("EXTRACTED ci_session: ${match.group(1)}");
+      return match.group(1);
+    }
+    return null;
+  }
+
   void signUserIn() async {
 
     String email = emailController.text.trim();
@@ -48,19 +64,58 @@ class _LoginPageState extends State<LoginPage> {
           )
           .timeout(const Duration(seconds: 10));
 
+      print("LOGIN STATUS: ${response.statusCode}");
+      print("LOGIN HEADERS: ${response.headers}");
+
       var data = jsonDecode(response.body);
+      print("LOGIN RESPONSE KEYS: ${data.keys.toList()}");
 
       if (response.statusCode == 200 && data["status"] == 200) {
 
-        String token = data['access_token'];
-        print("LOGIN TOKEN: $token");
+        // Get Bearer token (for fallback)
+        String token = data['access_token'] ?? data['token'] ?? '';
+
+        // Try to get session cookie from login response
+        String? sessionCookie = _extractSessionCookie(response);
+
+        print("TOKEN: $token");
+        print("SESSION COOKIE: $sessionCookie");
+
+        // If no session cookie from API login, try the web login endpoint
+        if (sessionCookie == null) {
+          print("No session cookie from API login, trying web login...");
+          try {
+            final webResponse = await http
+                .post(
+                  Uri.parse('https://bemmas.brainversetechnologies.co.ke/auth/login'),
+                  headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                  },
+                  body: {
+                    'identity': email,
+                    'password': password,
+                  },
+                )
+                .timeout(const Duration(seconds: 10));
+
+            print("WEB LOGIN STATUS: ${webResponse.statusCode}");
+            print("WEB LOGIN HEADERS: ${webResponse.headers}");
+            sessionCookie = _extractSessionCookie(webResponse);
+            print("SESSION COOKIE FROM WEB LOGIN: $sessionCookie");
+          } catch (e) {
+            print("Web login attempt failed: $e");
+          }
+        }
 
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => EventsList(token: token),
+            builder: (context) => EventsList(
+              token: token,
+              sessionCookie: sessionCookie,
+            ),
           ),
-          
         );
 
       } else {
@@ -120,8 +175,6 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
   backgroundColor: Colors.grey[300],
 
-  
-
   body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
@@ -129,26 +182,22 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Row(
-                  
-  children: [
-    
-    IconButton(
-      
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        Navigator.pop(context);
-      },
-      
-    ),
-  ],
-),
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
 
                 const SizedBox(height: 40),
 
                 Image.asset(
-  'assets/images/logo.png',
-  height: 100,
-),
+                  'assets/images/logo.png',
+                  height: 100,
+                ),
 
                 const SizedBox(height: 30),
 
@@ -186,17 +235,19 @@ class _LoginPageState extends State<LoginPage> {
                   hintText: 'Enter your password',
                   obscureText: true,
                 ),
-                const SizedBox(height: 10,),
+
+                const SizedBox(height: 10),
+
                 TextButton(
-  onPressed: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Please contact admin to reset password."),
-      ),
-    );
-  },
-  child: const Text("Forgot Password?"),
-),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Please contact admin to reset password."),
+                      ),
+                    );
+                  },
+                  child: const Text("Forgot Password?"),
+                ),
 
                 const SizedBox(height: 25),
 

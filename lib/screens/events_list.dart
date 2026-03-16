@@ -6,8 +6,13 @@ import 'package:ticketkona/theme/colors.dart';
 class EventsList extends StatefulWidget {
 
   final String token;
+  final String? sessionCookie;
 
-  const EventsList({super.key, required this.token});
+  const EventsList({
+    super.key,
+    required this.token,
+    this.sessionCookie,
+  });
 
   @override
   State<EventsList> createState() => _EventsListState();
@@ -21,59 +26,65 @@ class _EventsListState extends State<EventsList> {
   @override
   void initState() {
     super.initState();
+    print("EVENT LIST SCREEN OPENED");
+    print("SESSION COOKIE RECEIVED: ${widget.sessionCookie}");
     fetchEvents();
   }
 
-  // Fetch events from API
- fetchEvents() async {
+  fetchEvents() async {
+    print("FETCH EVENTS STARTED");
+    try {
 
-  print("FETCH EVENTS STARTED");
+      final response = await EventService().fetchEvents(
+        widget.token,
+        sessionCookie: widget.sessionCookie,
+      );
 
-  try {
+      print("EVENT API RESPONSE: $response");
 
-    final response = await EventService().fetchEvents(widget.token);
+      final status = response['status'];
+      final bool isSuccess = status == 200 || status == '200';
 
-    print("EVENT API RESPONSE: $response");
+      if (isSuccess) {
 
-    if (response['status'] == 200) {
+        List extractedEvents = [];
+        final raw = response['data'];
 
+        if (raw is List) {
+          extractedEvents = raw;
+        } else if (raw is Map) {
+          extractedEvents = raw['data'] ?? raw['events'] ?? [];
+        } else if (response['events'] is List) {
+          extractedEvents = response['events'];
+        }
+
+        print("EXTRACTED EVENTS COUNT: ${extractedEvents.length}");
+
+        setState(() {
+          events = extractedEvents;
+          loading = false;
+        });
+
+      } else {
+        setState(() {
+          events = [];
+          loading = false;
+        });
+      }
+
+    } catch (e) {
+      print("EVENT FETCH ERROR: $e");
       setState(() {
-
-        events = response['data'] ?? [];
-
         loading = false;
-
       });
-
-    } else {
-
-      setState(() {
-
-        events = [];
-
-        loading = false;
-
-      });
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Unable to load events."),
+        ),
+      );
     }
-
-  } catch (e) {
-
-    print("EVENT FETCH ERROR: $e");
-
-    setState(() {
-      loading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Unable to load events."),
-      ),
-    );
-
   }
 
-}
   @override
   Widget build(BuildContext context) {
 
@@ -89,7 +100,6 @@ class _EventsListState extends State<EventsList> {
       body: loading
           ? const Center(child: CircularProgressIndicator())
 
-          // EMPTY STATE UI
           : events.isEmpty
               ? Center(
                   child: Column(
@@ -130,7 +140,6 @@ class _EventsListState extends State<EventsList> {
                   ),
                 )
 
-              // EVENTS LIST
               : ListView.builder(
 
                   padding: const EdgeInsets.all(12),
@@ -156,7 +165,7 @@ class _EventsListState extends State<EventsList> {
                             const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
 
                         title: Text(
-                          event['event_name'] ?? "Event",
+                          event['name'] ?? event['event_name'] ?? "Event",
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -176,7 +185,7 @@ class _EventsListState extends State<EventsList> {
 
                             Expanded(
                               child: Text(
-                                event['event_location'] ?? "No location",
+                                event['location'] ?? event['event_location'] ?? "No location",
                                 style: const TextStyle(color: Colors.grey),
                               ),
                             ),
@@ -210,7 +219,7 @@ class _EventsListState extends State<EventsList> {
                               builder: (context) => ScanCode(
                                 event: event,
                                 token: widget.token,
-                                eventToken: event['ticket_scanning_token'],
+                                eventToken: event['token'] ?? event['ticket_scanning_token'] ?? '',
                               ),
 
                             ),

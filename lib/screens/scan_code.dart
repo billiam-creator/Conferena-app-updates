@@ -60,7 +60,7 @@ class _ScanCodeState extends State<ScanCode> {
                           foregroundColor: CustomColors.textGrey),
                       icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
                       label: Text(
-                        'Enter Event Token',
+                        'Back to Events',
                         style: TextStyle(
                           fontSize: MediaQuery.of(context).size.width / 26,
                         ),
