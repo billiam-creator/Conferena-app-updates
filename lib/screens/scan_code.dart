@@ -34,7 +34,7 @@ class _ScanCodeState extends State<ScanCode> {
   @override
   void initState() {
     super.initState();
-    final count = widget.event['bookings_count'];
+    final count = widget.event['bookings_count'] ?? widget.event['tickets_sold'] ?? widget.event['total_bookings'];
     bookingCount = count != null ? count.toString() : '0';
   }
 

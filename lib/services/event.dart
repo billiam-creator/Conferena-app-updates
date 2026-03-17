@@ -4,53 +4,89 @@ import 'package:http/http.dart' as http;
 class EventService {
 
   final String webBaseUrl = 'https://bemmas.brainversetechnologies.co.ke';
-  final String baseUrl = 'https://bemmas.brainversetechnologies.co.ke/api';
+  final String baseUrl    = 'https://bemmas.brainversetechnologies.co.ke/api';
 
-  // Fetch events using ci_session cookie (same as website dashboard)
+  // Fetch events and merge real booking counts from dashboard_meta
   Future fetchEvents(String token, {String? sessionCookie}) async {
 
     print("=== FETCH EVENTS ===");
 
-    // If we have a session cookie, use the web endpoint (same as website)
-    if (sessionCookie != null && sessionCookie.isNotEmpty) {
-      print("Using session cookie with /events/api_list");
-      try {
-        final response = await http.get(
-          Uri.parse('$webBaseUrl/events/api_list'),
-          headers: {
-            'Cookie': 'ci_session=$sessionCookie',
-            'Accept': 'application/json',
-          },
-        );
-        print("STATUS: ${response.statusCode}");
-        print("BODY: ${response.body}");
+    final headers = sessionCookie != null && sessionCookie.isNotEmpty
+        ? {'Cookie': 'ci_session=$sessionCookie', 'Accept': 'application/json'}
+        : {'Authorization': 'Bearer $token',      'Accept': 'application/json'};
 
-        if (response.statusCode == 200 && response.body.isNotEmpty) {
-          final decoded = jsonDecode(response.body);
-          return decoded;
+    // ── 1. Fetch events list ─────────────────────────────────────────
+    List<dynamic> events = [];
+
+    try {
+      final eventsUrl = sessionCookie != null && sessionCookie.isNotEmpty
+          ? '$webBaseUrl/events/api_list'
+          : '$baseUrl/events/get_events';
+
+      print("FETCHING EVENTS: $eventsUrl");
+      final res = await http.get(Uri.parse(eventsUrl), headers: headers);
+      print("EVENTS STATUS: ${res.statusCode}");
+
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
+        final decoded = jsonDecode(res.body);
+        final raw = decoded['data'];
+        if (raw is List) {
+          events = raw;
+        } else if (raw is Map) {
+          events = raw['data'] ?? raw['events'] ?? [];
         }
-      } catch (e) {
-        print("Session cookie approach failed: $e");
+        print("EVENTS FETCHED: ${events.length}");
       }
+    } catch (e) {
+      print("EVENTS FETCH ERROR: $e");
     }
 
-    // Fallback: Bearer token with API endpoint
-    print("Falling back to Bearer token with /api/events/get_events");
-    final response = await http.get(
-      Uri.parse('$baseUrl/events/get_events'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
-    print("STATUS: ${response.statusCode}");
-    print("BODY: ${response.body}");
+    // ── 2. Fetch dashboard meta for real booking counts ──────────────
+    Map<int, int> ticketsByEventId = {};
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to load events: ${response.statusCode}');
+    try {
+      print("FETCHING DASHBOARD META");
+      final metaRes = await http.get(
+        Uri.parse('$webBaseUrl/users/auth/dashboard_meta'),
+        headers: headers,
+      );
+      print("META STATUS: ${metaRes.statusCode}");
+      print("META BODY: ${metaRes.body}");
+
+      if (metaRes.statusCode == 200 && metaRes.body.isNotEmpty) {
+        final meta = jsonDecode(metaRes.body);
+        final sales = meta['ticket_sales_by_event'];
+        if (sales is List) {
+          for (final item in sales) {
+            final id      = item['event_id'];
+            final tickets = item['tickets_sold'] ?? 0;
+            if (id != null) {
+              ticketsByEventId[id is int ? id : int.tryParse(id.toString()) ?? 0] =
+                  tickets is int ? tickets : int.tryParse(tickets.toString()) ?? 0;
+            }
+          }
+          print("BOOKING COUNTS LOADED: $ticketsByEventId");
+        }
+      }
+    } catch (e) {
+      print("META FETCH ERROR: $e");
     }
+
+    // ── 3. Merge booking counts into each event ──────────────────────
+    if (ticketsByEventId.isNotEmpty) {
+      events = events.map((event) {
+        final id = event['id'] is int
+            ? event['id']
+            : int.tryParse(event['id']?.toString() ?? '') ?? 0;
+        final count = ticketsByEventId[id];
+        if (count != null) {
+          return {...Map<String, dynamic>.from(event), 'bookings_count': count};
+        }
+        return event;
+      }).toList();
+    }
+
+    return {'status': 200, 'message': 'Data retrieved successfully', 'data': events};
   }
 
 
