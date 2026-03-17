@@ -9,7 +9,7 @@ class SessionManager {
   static const _keySaveCreds    = 'save_credentials';
   static const _keySessionExpiry = 'session_expiry';
 
-  // Session lasts 7 days (matches typical CI session lifetime)
+  // Session lasts 7 days 
   static const _sessionDurationDays = 7;
 
   // ── Save session after successful login ──────────────────────────
