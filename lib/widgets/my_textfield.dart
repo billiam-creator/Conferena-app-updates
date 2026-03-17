@@ -5,12 +5,14 @@ class MyTextfield extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final bool obscureText;
+  final Iterable<String>? autofillHints;
 
   const MyTextfield({
     super.key,
     required this.controller,
     required this.hintText,
     required this.obscureText,
+    this.autofillHints,
   });
 
   @override
@@ -20,6 +22,7 @@ class MyTextfield extends StatelessWidget {
       child: TextField(
         controller: controller,
         obscureText: obscureText,
+        autofillHints: autofillHints,
         decoration: InputDecoration(
           enabledBorder: const OutlineInputBorder(
             borderSide: BorderSide(color: Colors.white),

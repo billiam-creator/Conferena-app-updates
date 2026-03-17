@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../widgets/my_button.dart';
 import '../widgets/my_textfield.dart';
 import 'package:ticketkona/screens/events_list.dart';
+import 'package:ticketkona/services/session_manager.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,19 +16,34 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
 
-  final emailController = TextEditingController();
+  final emailController    = TextEditingController();
   final passwordController = TextEditingController();
 
-  bool isLoading = false;
+  bool isLoading    = false;
+  bool savePassword = false; // "Remember me" toggle
 
-  // Extract ci_session value from Set-Cookie response header
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  // Pre-fill email/password if user previously chose "Remember me"
+  Future<void> _loadSavedCredentials() async {
+    final creds = await SessionManager.loadCredentials();
+    if (creds != null) {
+      setState(() {
+        emailController.text    = creds['email']    ?? '';
+        passwordController.text = creds['password'] ?? '';
+        savePassword = true;
+      });
+    }
+  }
+
   String? _extractSessionCookie(http.Response response) {
     final rawCookie = response.headers['set-cookie'];
     print("RAW SET-COOKIE HEADER: $rawCookie");
     if (rawCookie == null) return null;
-
-    // set-cookie can look like:
-    // ci_session=abc123; Path=/; HttpOnly
     final match = RegExp(r'ci_session=([^;]+)').firstMatch(rawCookie);
     if (match != null) {
       print("EXTRACTED ci_session: ${match.group(1)}");
@@ -38,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void signUserIn() async {
 
-    String email = emailController.text.trim();
+    String email    = emailController.text.trim();
     String password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
@@ -48,59 +64,38 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
 
-      final response = await http
-          .post(
-            Uri.parse('https://bemmas.brainversetechnologies.co.ke/api/login'),
-            body: {
-              'identity': email,
-              'password': password,
-            },
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await http.post(
+        Uri.parse('https://bemmas.brainversetechnologies.co.ke/api/login'),
+        body: {
+          'identity': email,
+          'password': password,
+        },
+      ).timeout(const Duration(seconds: 10));
 
       print("LOGIN STATUS: ${response.statusCode}");
-      print("LOGIN HEADERS: ${response.headers}");
-
       var data = jsonDecode(response.body);
       print("LOGIN RESPONSE KEYS: ${data.keys.toList()}");
 
       if (response.statusCode == 200 && data["status"] == 200) {
 
-        // Get Bearer token (for fallback)
         String token = data['access_token'] ?? data['token'] ?? '';
-
-        // Try to get session cookie from login response
         String? sessionCookie = _extractSessionCookie(response);
 
-        print("TOKEN: $token");
-        print("SESSION COOKIE: $sessionCookie");
-
-        // If no session cookie from API login, try the web login endpoint
+        // If no cookie from API login, try the web login endpoint
         if (sessionCookie == null) {
-          print("No session cookie from API login, trying web login...");
+          print("Trying web login for session cookie...");
           try {
-            final webResponse = await http
-                .post(
-                  Uri.parse('https://bemmas.brainversetechnologies.co.ke/auth/login'),
-                  headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept': 'application/json',
-                  },
-                  body: {
-                    'identity': email,
-                    'password': password,
-                  },
-                )
-                .timeout(const Duration(seconds: 10));
+            final webResponse = await http.post(
+              Uri.parse('https://bemmas.brainversetechnologies.co.ke/auth/login'),
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: {'identity': email, 'password': password},
+            ).timeout(const Duration(seconds: 10));
 
             print("WEB LOGIN STATUS: ${webResponse.statusCode}");
-            print("WEB LOGIN HEADERS: ${webResponse.headers}");
             sessionCookie = _extractSessionCookie(webResponse);
             print("SESSION COOKIE FROM WEB LOGIN: $sessionCookie");
           } catch (e) {
@@ -108,10 +103,30 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
 
-        Navigator.push(
+        // Save session so app remembers login across restarts
+        await SessionManager.saveSession(
+          token: token,
+          sessionCookie: sessionCookie,
+        );
+
+        // Save or clear credentials based on "Remember me"
+        if (savePassword) {
+          await SessionManager.saveCredentials(
+            email: email,
+            password: password,
+          );
+        } else {
+          await SessionManager.clearCredentials();
+        }
+
+        if (!mounted) return;
+
+        // Use pushReplacement so pressing back on events page
+        // doesn't go back to login — it goes to Home instead
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => EventsList(
+            builder: (_) => EventsList(
               token: token,
               sessionCookie: sessionCookie,
             ),
@@ -119,47 +134,28 @@ class _LoginPageState extends State<LoginPage> {
         );
 
       } else {
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              data['message'] ?? "Login failed. Please try again.",
-            ),
+            content: Text(data['message'] ?? "Login failed. Please try again."),
           ),
         );
-
       }
 
     } on http.ClientException {
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Unable to reach server. Please try again later."),
-        ),
+        const SnackBar(content: Text("Unable to reach server. Please try again later.")),
       );
-
     } on FormatException {
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Unexpected server response."),
-        ),
+        const SnackBar(content: Text("Unexpected server response.")),
       );
-
     } on Exception {
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Network error. Check your internet connection."),
-        ),
+        const SnackBar(content: Text("Network error. Check your internet connection.")),
       );
-
     }
 
-    setState(() {
-      isLoading = false;
-    });
-
+    setState(() => isLoading = false);
   }
 
   @override
@@ -171,33 +167,27 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-  backgroundColor: Colors.grey[300],
-
-  body: SafeArea(
+      backgroundColor: Colors.grey[300],
+      body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 40),
 
-                Image.asset(
-                  'assets/images/logo.png',
-                  height: 100,
-                ),
+                Image.asset('assets/images/logo.png', height: 100),
 
                 const SizedBox(height: 30),
 
@@ -214,29 +204,52 @@ class _LoginPageState extends State<LoginPage> {
 
                 Text(
                   "Welcome back to Conferena",
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.grey[700], fontSize: 16),
                 ),
 
                 const SizedBox(height: 25),
 
-                MyTextfield(
-                  controller: emailController,
-                  hintText: 'Enter your email',
-                  obscureText: false,
-                ),
+                // Email field — autofillHints enables Google autofill
+                AutofillGroup(
+                  child: Column(
+                    children: [
+                      MyTextfield(
+                        controller: emailController,
+                        hintText: 'Enter your email',
+                        obscureText: false,
+                        autofillHints: const [AutofillHints.email],
+                      ),
 
-                const SizedBox(height: 15),
+                      const SizedBox(height: 15),
 
-                MyTextfield(
-                  controller: passwordController,
-                  hintText: 'Enter your password',
-                  obscureText: true,
+                      MyTextfield(
+                        controller: passwordController,
+                        hintText: 'Enter your password',
+                        obscureText: true,
+                        autofillHints: const [AutofillHints.password],
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 10),
+
+                // Remember me toggle
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: savePassword,
+                        activeColor: const Color(0xFFF82249),
+                        onChanged: (val) {
+                          setState(() => savePassword = val ?? false);
+                        },
+                      ),
+                      const Text("Remember me"),
+                    ],
+                  ),
+                ),
 
                 TextButton(
                   onPressed: () {
@@ -253,10 +266,9 @@ class _LoginPageState extends State<LoginPage> {
 
                 isLoading
                     ? const CircularProgressIndicator()
-                    : MyButton(
-                        onTap: signUserIn,
-                      ),
+                    : MyButton(onTap: signUserIn),
 
+                const SizedBox(height: 40),
               ],
             ),
           ),
