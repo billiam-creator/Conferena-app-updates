@@ -216,7 +216,7 @@ class _EventsListState extends State<EventsList> {
                             )
                           : _buildBannerPlaceholder(eventName),
 
-                      // Gradient overlay so text is readable over the banner
+                      // Gradient overlay 
                       Positioned(
                         bottom: 0, left: 0, right: 0,
                         child: Container(
@@ -305,7 +305,7 @@ class _EventsListState extends State<EventsList> {
 
                       const SizedBox(width: 12),
 
-                      // Bookings count pill
+                      // Bookings count 
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -328,7 +328,7 @@ class _EventsListState extends State<EventsList> {
                         ),
                       ),
 
-                      // Date pill (only if date is set)
+                      // Date 
                       if (startDate.isNotEmpty) ...[
                         const SizedBox(width: 8),
                         Container(
@@ -362,7 +362,7 @@ class _EventsListState extends State<EventsList> {
     );
   }
 
-  // Placeholder shown while image loads or if URL is missing/broken
+  // Placeholder shown while image loads or broken
   Widget _buildBannerPlaceholder(String eventName) {
     return Container(
       width: double.infinity,

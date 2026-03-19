@@ -36,10 +36,10 @@ class _InitializerState extends State<Initializer>
       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
     );
 
-    // Start animation immediately — no white screen wait
+    // Start animation immediately 
     _animController.forward();
 
-    // Check session after animation completes + a short hold
+    // Check session after animation completes
     _animController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         // Hold the logo for 1 second after it finishes animating in
@@ -72,7 +72,7 @@ class _InitializerState extends State<Initializer>
     }
   }
 
-  // Smooth fade transition instead of the default slide
+  // Smooth fade transition 
   PageRouteBuilder _fadeRoute(Widget page) {
     return PageRouteBuilder(
       pageBuilder: (_, __, ___) => page,

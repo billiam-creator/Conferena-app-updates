@@ -53,7 +53,7 @@ class Home extends StatelessWidget {
                 height: MediaQuery.of(context).size.height / 12,
               ),
 
-              // Start scanning using token (existing feature)
+              // Start scanning using token 
               Row(
                 children: [
                   SizedBox(width: MediaQuery.of(context).size.width / 6),
@@ -74,7 +74,7 @@ class Home extends StatelessWidget {
                         color: CustomColors.textWhite,
                       ),
                       label: Text(
-                        'START SCANNING',
+                        'SCAN WITH TOKEN',
                         style: TextStyle(
                           color: CustomColors.textWhite,
                           fontSize: MediaQuery.of(context).size.width / 26,

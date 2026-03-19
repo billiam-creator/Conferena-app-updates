@@ -12,7 +12,7 @@ class SessionManager {
   // Session lasts 7 days 
   static const _sessionDurationDays = 7;
 
-  // ── Save session after successful login ──────────────────────────
+  //Save session after successful login 
   static Future<void> saveSession({
     required String token,
     String? sessionCookie,
@@ -29,7 +29,7 @@ class SessionManager {
     print("SESSION SAVED — expires in $_sessionDurationDays days");
   }
 
-  // ── Load session (returns null if expired or missing) ────────────
+  // Load session (returns null if expired or missing)
   static Future<Map<String, String?>?> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
     final token  = prefs.getString(_keyToken);
@@ -52,7 +52,7 @@ class SessionManager {
     };
   }
 
-  // ── Clear session on logout ──────────────────────────────────────
+  //Clear session on logout
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyToken);
@@ -61,7 +61,7 @@ class SessionManager {
     print("SESSION CLEARED");
   }
 
-  // ── Save credentials for autofill ───────────────────────────────
+  //Save credentials for autofill
   static Future<void> saveCredentials({
     required String email,
     required String password,

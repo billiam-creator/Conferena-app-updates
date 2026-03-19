@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../widgets/my_button.dart';
 import '../widgets/my_textfield.dart';
 import 'package:ticketkona/screens/events_list.dart';
+import 'package:ticketkona/config.dart';
 import 'package:ticketkona/services/session_manager.dart';
 
 class LoginPage extends StatefulWidget {
@@ -69,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
 
       final response = await http.post(
-        Uri.parse('https://bemmas.brainversetechnologies.co.ke/api/login'),
+        Uri.parse(AppConfig.apiLogin),
         body: {
           'identity': email,
           'password': password,
@@ -90,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
           print("Trying web login for session cookie...");
           try {
             final webResponse = await http.post(
-              Uri.parse('https://bemmas.brainversetechnologies.co.ke/auth/login'),
+              Uri.parse(AppConfig.webLogin),
               headers: {'Content-Type': 'application/x-www-form-urlencoded'},
               body: {'identity': email, 'password': password},
             ).timeout(const Duration(seconds: 10));
@@ -103,13 +104,13 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
 
-        // Save session so app remembers login across restarts
+        // Save session 
         await SessionManager.saveSession(
           token: token,
           sessionCookie: sessionCookie,
         );
 
-        // Save or clear credentials based on "Remember me"
+        // Save or clear credentials 
         if (savePassword) {
           await SessionManager.saveCredentials(
             email: email,
@@ -121,8 +122,7 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        // Use pushReplacement so pressing back on events page
-        // doesn't go back to login — it goes to Home instead
+       
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

@@ -1,12 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:ticketkona/config.dart';
 
 class EventService {
 
-  final String webBaseUrl = 'https://bemmas.brainversetechnologies.co.ke';
-  final String baseUrl    = 'https://bemmas.brainversetechnologies.co.ke/api';
-
-  // Fetch events and merge real booking counts from dashboard_meta
   Future fetchEvents(String token, {String? sessionCookie}) async {
 
     print("=== FETCH EVENTS ===");
@@ -15,13 +12,13 @@ class EventService {
         ? {'Cookie': 'ci_session=$sessionCookie', 'Accept': 'application/json'}
         : {'Authorization': 'Bearer $token',      'Accept': 'application/json'};
 
-    // ── 1. Fetch events list ─────────────────────────────────────────
+    //Fetch events list
     List<dynamic> events = [];
 
     try {
       final eventsUrl = sessionCookie != null && sessionCookie.isNotEmpty
-          ? '$webBaseUrl/events/api_list'
-          : '$baseUrl/events/get_events';
+          ? AppConfig.eventsApi
+          : AppConfig.eventsGet;
 
       print("FETCHING EVENTS: $eventsUrl");
       final res = await http.get(Uri.parse(eventsUrl), headers: headers);
@@ -41,17 +38,16 @@ class EventService {
       print("EVENTS FETCH ERROR: $e");
     }
 
-    // ── 2. Fetch dashboard meta for real booking counts ──────────────
+    //  Fetch dashboard meta for booking counts
     Map<int, int> ticketsByEventId = {};
 
     try {
       print("FETCHING DASHBOARD META");
       final metaRes = await http.get(
-        Uri.parse('$webBaseUrl/users/auth/dashboard_meta'),
+        Uri.parse(AppConfig.dashMeta),
         headers: headers,
       );
       print("META STATUS: ${metaRes.statusCode}");
-      print("META BODY: ${metaRes.body}");
 
       if (metaRes.statusCode == 200 && metaRes.body.isNotEmpty) {
         final meta = jsonDecode(metaRes.body);
@@ -72,7 +68,7 @@ class EventService {
       print("META FETCH ERROR: $e");
     }
 
-    // ── 3. Merge booking counts into each event ──────────────────────
+    // Merge booking counts into each event
     if (ticketsByEventId.isNotEmpty) {
       events = events.map((event) {
         final id = event['id'] is int
@@ -90,17 +86,14 @@ class EventService {
   }
 
 
-  // Validate scanned ticket
   Future validateTicket(String eventToken, String code) async {
 
-    Map body = {
-      'event_token': eventToken,
-      'booking_code': code,
-    };
-
     final response = await http.post(
-      Uri.parse('$baseUrl/bookings/verify'),
-      body: body,
+      Uri.parse(AppConfig.verifyTicket),
+      body: {
+        'event_token': eventToken,
+        'booking_code': code,
+      },
     );
 
     print("VERIFY RESPONSE: ${response.body}");
