@@ -6,6 +6,8 @@ class MyTextfield extends StatefulWidget {
   final String hintText;
   final bool obscureText;
   final Iterable<String>? autofillHints;
+  final bool hasError;
+  final ValueChanged<String>? onChanged;
 
   const MyTextfield({
     super.key,
@@ -13,6 +15,8 @@ class MyTextfield extends StatefulWidget {
     required this.hintText,
     required this.obscureText,
     this.autofillHints,
+    this.hasError = false,
+    this.onChanged,
   });
 
   @override
@@ -37,27 +41,30 @@ class _MyTextfieldState extends State<MyTextfield> {
         controller: widget.controller,
         obscureText: _obscured,
         autofillHints: widget.autofillHints,
+        onChanged: widget.onChanged,
         decoration: InputDecoration(
-          enabledBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.white),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: widget.hasError ? Colors.red.shade400 : Colors.white,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade400),
+            borderSide: BorderSide(
+              color: widget.hasError ? Colors.red.shade500 : Colors.grey.shade400,
+              width: widget.hasError ? 1.5 : 1.0,
+            ),
           ),
-          fillColor: Colors.grey.shade200,
+          fillColor: widget.hasError ? Colors.red.shade50 : Colors.grey.shade200,
           filled: true,
           hintText: widget.hintText,
           hintStyle: TextStyle(color: Colors.grey[500]),
-          // Only show the eye icon on password fields
           suffixIcon: widget.obscureText
               ? IconButton(
                   icon: Icon(
                     _obscured ? Icons.visibility_off : Icons.visibility,
                     color: Colors.grey[600],
                   ),
-                  onPressed: () {
-                    setState(() => _obscured = !_obscured);
-                  },
+                  onPressed: () => setState(() => _obscured = !_obscured),
                 )
               : null,
         ),
