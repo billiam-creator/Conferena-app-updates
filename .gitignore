@@ -45,3 +45,9 @@ app.*.map.json
 
 # FVM flutter sdk
 .fvm/flutter_sdk
+
+key.properties
+*.jks
+key.properties
+*.jks
+key.properties1
