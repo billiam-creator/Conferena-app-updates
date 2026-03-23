@@ -92,7 +92,7 @@ class _ScanCodeState extends State<ScanCode> {
             ),
             SizedBox(height: MediaQuery.of(context).size.height / 55),
             Text(
-              widget.event['name'] ?? widget.event['event_name'] ?? 'Event',
+              widget.event['event_name'] ?? widget.event['name'] ?? 'Event',
               style: TextStyle(
                 color: CustomColors.textBlack,
                 fontSize: MediaQuery.of(context).size.width / 18,
@@ -101,7 +101,7 @@ class _ScanCodeState extends State<ScanCode> {
             ),
             SizedBox(height: MediaQuery.of(context).size.height / 40),
             Text(
-              widget.event['name'] ?? widget.event['event_name'] ?? 'Event',
+              widget.event['event_name'] ?? widget.event['name'] ?? 'Event',
               style: TextStyle(
                 color: CustomColors.textGrey,
                 fontSize: MediaQuery.of(context).size.width / 26,

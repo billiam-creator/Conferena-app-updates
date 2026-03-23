@@ -12,7 +12,7 @@ class EventService {
         ? {'Cookie': 'ci_session=$sessionCookie', 'Accept': 'application/json'}
         : {'Authorization': 'Bearer $token',      'Accept': 'application/json'};
 
-    //Fetch events list
+    // ── 1. Fetch events list ─────────────────────────────────────────
     List<dynamic> events = [];
 
     try {
@@ -38,7 +38,7 @@ class EventService {
       print("EVENTS FETCH ERROR: $e");
     }
 
-    //  Fetch dashboard meta for booking counts
+    // ── 2. Fetch dashboard meta for real booking counts ──────────────
     Map<int, int> ticketsByEventId = {};
 
     try {
@@ -68,12 +68,12 @@ class EventService {
       print("META FETCH ERROR: $e");
     }
 
-    // Merge booking counts into each event
+    // ── 3. Merge booking counts into each event ──────────────────────
     if (ticketsByEventId.isNotEmpty) {
       events = events.map((event) {
-        final id = event['id'] is int
-            ? event['id']
-            : int.tryParse(event['id']?.toString() ?? '') ?? 0;
+        final id = (event['id'] ?? event['event_id']) is int
+            ? (event['id'] ?? event['event_id'])
+            : int.tryParse((event['id'] ?? event['event_id'])?.toString() ?? '') ?? 0;
         final count = ticketsByEventId[id];
         if (count != null) {
           return {...Map<String, dynamic>.from(event), 'bookings_count': count};

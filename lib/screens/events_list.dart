@@ -160,10 +160,14 @@ class _EventsListState extends State<EventsList> {
       itemBuilder: (context, index) {
         final Map event = events[index];
         final bookingsCount = event['bookings_count'] ?? event['total_bookings'] ?? 0;
-        final String? bannerUrl = event['banner'];
-        final String eventName = event['name'] ?? event['event_name'] ?? "Event";
-        final String location = event['location'] ?? event['event_location'] ?? "No location";
-        final String startDate = event['start_date'] ?? '';
+        // Live server uses 'event_banner' with relative path, staging used 'banner' with full URL
+        final String? rawBanner = event['event_banner'] ?? event['banner'];
+        final String? bannerUrl = rawBanner != null && rawBanner.isNotEmpty
+            ? (rawBanner.startsWith('http') ? rawBanner : 'https://go.conferena.com/uploads/$rawBanner')
+            : null;
+        final String eventName = event['event_name'] ?? event['name'] ?? "Event";
+        final String location = event['event_location'] ?? event['location'] ?? "No location";
+        final String startDate = event['event_from_date'] ?? event['start_date'] ?? '';
 
         return GestureDetector(
           onTap: () {
@@ -216,7 +220,7 @@ class _EventsListState extends State<EventsList> {
                             )
                           : _buildBannerPlaceholder(eventName),
 
-                      // Gradient overlay 
+                      // Gradient overlay so text is readable over the banner
                       Positioned(
                         bottom: 0, left: 0, right: 0,
                         child: Container(
@@ -305,7 +309,7 @@ class _EventsListState extends State<EventsList> {
 
                       const SizedBox(width: 12),
 
-                      // Bookings count 
+                      // Bookings count pill
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -328,7 +332,7 @@ class _EventsListState extends State<EventsList> {
                         ),
                       ),
 
-                      // Date 
+                      // Date pill (only if date is set)
                       if (startDate.isNotEmpty) ...[
                         const SizedBox(width: 8),
                         Container(
@@ -362,7 +366,7 @@ class _EventsListState extends State<EventsList> {
     );
   }
 
-  // Placeholder shown while image loads or broken
+  // Placeholder shown while image loads or if URL is missing/broken
   Widget _buildBannerPlaceholder(String eventName) {
     return Container(
       width: double.infinity,
