@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:ticketkona/screens/home.dart';
 import 'package:ticketkona/screens/events_list.dart';
 import 'package:ticketkona/services/session_manager.dart';
 import 'package:ticketkona/theme/colors.dart';
+import 'package:ticketkona/config.dart';
 
 class Initializer extends StatefulWidget {
   const Initializer({Key? key}) : super(key: key);
@@ -22,7 +25,6 @@ class _InitializerState extends State<Initializer>
   void initState() {
     super.initState();
 
-    // Animation: logo fades + scales in over 800ms
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -36,13 +38,10 @@ class _InitializerState extends State<Initializer>
       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
     );
 
-    // Start animation immediately 
     _animController.forward();
 
-    // Check session after animation completes
     _animController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        // Hold the logo for 1 second after it finishes animating in
         Future.delayed(const Duration(milliseconds: 1000), _checkSession);
       }
     });
@@ -52,11 +51,86 @@ class _InitializerState extends State<Initializer>
     final session = await SessionManager.loadSession();
     if (!mounted) return;
 
-    // Fade out before navigating
-    await _animController.reverse();
-    if (!mounted) return;
-
     if (session != null) {
+      print("ACTIVE SESSION FOUND — refreshing token");
+
+      // Always re-login with saved credentials to get a fresh token
+      // This prevents stale token issues
+      final creds = await SessionManager.loadCredentials();
+
+      if (creds != null &&
+          creds['email'] != null &&
+          creds['password'] != null) {
+
+        print("RE-LOGGING IN WITH SAVED CREDENTIALS");
+        try {
+          final response = await http.post(
+            Uri.parse(AppConfig.apiLogin),
+            body: {
+              'identity': creds['email']!,
+              'password': creds['password']!,
+            },
+          ).timeout(const Duration(seconds: 10));
+
+          final data = jsonDecode(response.body);
+
+          if (response.statusCode == 200 && data['status'] == 200) {
+            final newToken = data['access_token'] ?? data['token'] ?? '';
+            print("TOKEN REFRESHED: $newToken");
+
+            // Get new session cookie
+            String? newCookie;
+            final rawCookie = response.headers['set-cookie'];
+            if (rawCookie != null) {
+              final match = RegExp(r'ci_session=([^;]+)').firstMatch(rawCookie);
+              newCookie = match?.group(1);
+            }
+
+            // Try web login for cookie if not found
+            if (newCookie == null) {
+              try {
+                final webRes = await http.post(
+                  Uri.parse(AppConfig.webLogin),
+                  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                  body: {
+                    'identity': creds['email']!,
+                    'password': creds['password']!,
+                  },
+                ).timeout(const Duration(seconds: 10));
+                final wRaw = webRes.headers['set-cookie'];
+                if (wRaw != null) {
+                  final m = RegExp(r'ci_session=([^;]+)').firstMatch(wRaw);
+                  newCookie = m?.group(1);
+                }
+              } catch (_) {}
+            }
+
+            await SessionManager.saveSession(
+              token: newToken,
+              sessionCookie: newCookie,
+            );
+
+            if (!mounted) return;
+            await _animController.reverse();
+            if (!mounted) return;
+
+            Navigator.pushReplacement(
+              context,
+              _fadeRoute(EventsList(
+                token: newToken,
+                sessionCookie: newCookie,
+              )),
+            );
+            return;
+          }
+        } catch (e) {
+          print("AUTO RE-LOGIN FAILED: $e — using saved token");
+        }
+      }
+
+      // Fallback: use saved token if re-login failed
+      await _animController.reverse();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         _fadeRoute(EventsList(
@@ -64,7 +138,11 @@ class _InitializerState extends State<Initializer>
           sessionCookie: session['sessionCookie'],
         )),
       );
+
     } else {
+      print("NO SESSION — going to Home");
+      await _animController.reverse();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         _fadeRoute(const Home()),
@@ -72,7 +150,6 @@ class _InitializerState extends State<Initializer>
     }
   }
 
-  // Smooth fade transition 
   PageRouteBuilder _fadeRoute(Widget page) {
     return PageRouteBuilder(
       pageBuilder: (_, __, ___) => page,

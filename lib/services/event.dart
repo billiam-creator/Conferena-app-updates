@@ -8,45 +8,38 @@ class EventService {
 
     print("=== FETCH EVENTS ===");
 
-    final headers = sessionCookie != null && sessionCookie.isNotEmpty
-        ? {'Cookie': 'ci_session=$sessionCookie', 'Accept': 'application/json'}
-        : {'Authorization': 'Bearer $token',      'Accept': 'application/json'};
+    // Server requires BOTH Bearer token AND session cookie together
+    final headers = {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+      if (sessionCookie != null && sessionCookie.isNotEmpty)
+        'Cookie': 'ci_session=$sessionCookie',
+    };
 
-    // ── 1. Fetch events list ─────────────────────────────────────────
+    // ── 1. Fetch events ──────────────────────────────────────────────
     List<dynamic> events = [];
 
     try {
-      final eventsUrl = sessionCookie != null && sessionCookie.isNotEmpty
-          ? AppConfig.eventsApi
-          : AppConfig.eventsGet;
-
-      print("FETCHING EVENTS: $eventsUrl");
-      final res = await http.get(Uri.parse(eventsUrl), headers: headers);
-      print("EVENTS STATUS: ${res.statusCode}");
+      print("FETCHING EVENTS: ${AppConfig.eventsGet}");
+      final res = await http.get(Uri.parse(AppConfig.eventsGet), headers: headers);
+      print("STATUS: ${res.statusCode}");
+      print("BODY: ${res.body}");
 
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         final decoded = jsonDecode(res.body);
         final raw = decoded['data'];
-        if (raw is List) {
-          events = raw;
-        } else if (raw is Map) {
-          events = raw['data'] ?? raw['events'] ?? [];
-        }
+        if (raw is List) events = raw;
         print("EVENTS FETCHED: ${events.length}");
       }
     } catch (e) {
-      print("EVENTS FETCH ERROR: $e");
+      print("EVENTS ERROR: $e");
     }
 
-    // ── 2. Fetch dashboard meta for real booking counts ──────────────
+    // ── 2. Fetch booking counts ──────────────────────────────────────
     Map<int, int> ticketsByEventId = {};
 
     try {
-      print("FETCHING DASHBOARD META");
-      final metaRes = await http.get(
-        Uri.parse(AppConfig.dashMeta),
-        headers: headers,
-      );
+      final metaRes = await http.get(Uri.parse(AppConfig.dashMeta), headers: headers);
       print("META STATUS: ${metaRes.statusCode}");
 
       if (metaRes.statusCode == 200 && metaRes.body.isNotEmpty) {
@@ -54,26 +47,25 @@ class EventService {
         final sales = meta['ticket_sales_by_event'];
         if (sales is List) {
           for (final item in sales) {
-            final id      = item['event_id'];
+            final id = item['event_id'];
             final tickets = item['tickets_sold'] ?? 0;
             if (id != null) {
               ticketsByEventId[id is int ? id : int.tryParse(id.toString()) ?? 0] =
                   tickets is int ? tickets : int.tryParse(tickets.toString()) ?? 0;
             }
           }
-          print("BOOKING COUNTS LOADED: $ticketsByEventId");
+          print("BOOKING COUNTS: $ticketsByEventId");
         }
       }
     } catch (e) {
-      print("META FETCH ERROR: $e");
+      print("META ERROR: $e");
     }
 
-    // ── 3. Merge booking counts into each event ──────────────────────
+    // ── 3. Merge booking counts into events ──────────────────────────
     if (ticketsByEventId.isNotEmpty) {
       events = events.map((event) {
-        final id = (event['id'] ?? event['event_id']) is int
-            ? (event['id'] ?? event['event_id'])
-            : int.tryParse((event['id'] ?? event['event_id'])?.toString() ?? '') ?? 0;
+        final rawId = event['event_id'] ?? event['id'];
+        final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
         final count = ticketsByEventId[id];
         if (count != null) {
           return {...Map<String, dynamic>.from(event), 'bookings_count': count};
