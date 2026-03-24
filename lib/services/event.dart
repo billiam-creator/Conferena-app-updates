@@ -16,7 +16,7 @@ class EventService {
         'Cookie': 'ci_session=$sessionCookie',
     };
 
-    // ── 1. Fetch events ──────────────────────────────────────────────
+    // ── 1. Fetch events list ─────────────────────────────────────────
     List<dynamic> events = [];
 
     try {
@@ -35,43 +35,53 @@ class EventService {
       print("EVENTS ERROR: $e");
     }
 
-    // ── 2. Fetch booking counts ──────────────────────────────────────
-    Map<int, int> ticketsByEventId = {};
+    // ── 2. Fetch booking counts for each event via HTML parsing ──────
+    if (sessionCookie != null && sessionCookie.isNotEmpty && events.isNotEmpty) {
+      final cookieHeaders = {
+        'Cookie': 'ci_session=$sessionCookie',
+        'Accept': 'text/html',
+      };
 
-    try {
-      final metaRes = await http.get(Uri.parse(AppConfig.dashMeta), headers: headers);
-      print("META STATUS: ${metaRes.statusCode}");
+      events = await Future.wait(events.map((event) async {
+        try {
+          final rawId = event['event_id'] ?? event['id'];
+          final eventId = rawId?.toString() ?? '';
+          if (eventId.isEmpty) return event;
 
-      if (metaRes.statusCode == 200 && metaRes.body.isNotEmpty) {
-        final meta = jsonDecode(metaRes.body);
-        final sales = meta['ticket_sales_by_event'];
-        if (sales is List) {
-          for (final item in sales) {
-            final id = item['event_id'];
-            final tickets = item['tickets_sold'] ?? 0;
-            if (id != null) {
-              ticketsByEventId[id is int ? id : int.tryParse(id.toString()) ?? 0] =
-                  tickets is int ? tickets : int.tryParse(tickets.toString()) ?? 0;
+          print("FETCHING BOOKING COUNTS FOR EVENT: $eventId");
+          final res = await http.get(
+            Uri.parse('${AppConfig.baseUrl}/events/get_booking/$eventId'),
+            headers: cookieHeaders,
+          );
+
+          print("BOOKING PAGE STATUS: ${res.statusCode}");
+
+          if (res.statusCode == 200 && res.body.isNotEmpty) {
+            final html = res.body;
+
+            // Parse "Total Tickets Booked" from HTML
+            final totalMatch = RegExp(
+              r'Total Tickets Booked[\s\S]*?<span>\s*(\d+)\s*<\/span>',
+            ).firstMatch(html);
+
+            final total = totalMatch != null
+                ? int.tryParse(totalMatch.group(1)?.trim() ?? '0') ?? 0
+                : 0;
+
+            print("PARSED BOOKING COUNT FOR $eventId: $total");
+
+            if (total > 0) {
+              return {
+                ...Map<String, dynamic>.from(event),
+                'bookings_count': total,
+              };
             }
           }
-          print("BOOKING COUNTS: $ticketsByEventId");
-        }
-      }
-    } catch (e) {
-      print("META ERROR: $e");
-    }
-
-    // ── 3. Merge booking counts into events ──────────────────────────
-    if (ticketsByEventId.isNotEmpty) {
-      events = events.map((event) {
-        final rawId = event['event_id'] ?? event['id'];
-        final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
-        final count = ticketsByEventId[id];
-        if (count != null) {
-          return {...Map<String, dynamic>.from(event), 'bookings_count': count};
+        } catch (e) {
+          print("BOOKING COUNT ERROR: $e");
         }
         return event;
-      }).toList();
+      }));
     }
 
     return {'status': 200, 'message': 'Data retrieved successfully', 'data': events};

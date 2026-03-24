@@ -160,7 +160,7 @@ class _EventsListState extends State<EventsList> {
       itemBuilder: (context, index) {
         final Map event = events[index];
         final bookingsCount = event['bookings_count'] ?? event['total_bookings'] ?? 0;
-        // Live server uses 'event_banner' with relative path, staging used 'banner' with full URL
+        // Live server uses 'event_banner'
         final String? rawBanner = event['event_banner'] ?? event['banner'];
         final String? bannerUrl = rawBanner != null && rawBanner.isNotEmpty
             ? (rawBanner.startsWith('http') ? rawBanner : 'https://go.conferena.com/uploads/$rawBanner')
