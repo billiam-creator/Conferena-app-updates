@@ -160,7 +160,7 @@ class _EventsListState extends State<EventsList> {
       itemBuilder: (context, index) {
         final Map event = events[index];
         final bookingsCount = event['bookings_count'] ?? event['total_bookings'] ?? 0;
-        // Live server uses 'event_banner'
+        // Live server uses 'event_banner' with relative path, staging used 'banner' with full URL
         final String? rawBanner = event['event_banner'] ?? event['banner'];
         final String? bannerUrl = rawBanner != null && rawBanner.isNotEmpty
             ? (rawBanner.startsWith('http') ? rawBanner : 'https://go.conferena.com/uploads/$rawBanner')
@@ -177,7 +177,7 @@ class _EventsListState extends State<EventsList> {
                 builder: (_) => ScanCode(
                   event: event,
                   token: widget.token,
-                  eventToken: event['token'] ?? event['ticket_scanning_token'] ?? '',
+                  eventToken: event['ticket_scanning_token'] ?? event['token'] ?? '',
                 ),
               ),
             );

@@ -36,6 +36,10 @@ class _ScanCodeState extends State<ScanCode> {
     super.initState();
     final count = widget.event['bookings_count'] ?? widget.event['tickets_sold'] ?? widget.event['total_bookings'];
     bookingCount = count != null ? count.toString() : '0';
+    print("SCAN PAGE OPENED");
+    print("EVENT TOKEN: \${widget.eventToken}");
+    print("EVENT: \${widget.event}");
+    print("TOKEN: \${widget.token}");
   }
 
   @override
@@ -253,7 +257,11 @@ class _ScanCodeState extends State<ScanCode> {
           scanCount = null;
         });
 
+        print("=== SCANNING QR ===");
+        print("EVENT TOKEN: \${widget.eventToken}");
+        print("SCANNED CODE: \${scanData.code}");
         validateTicket(widget.eventToken, scanData.code as String).then((value) {
+          print("VALIDATE RESPONSE: \$value");
           if (value['status'] == 200) {
             var data;
             try {
