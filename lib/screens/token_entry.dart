@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ticketkona/screens/scan_code.dart';
 import 'package:ticketkona/theme/colors.dart';
 import 'package:ticketkona/config.dart';
-import 'package:ticketkona/services/session_manager.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -19,78 +18,29 @@ class _TokenEntryState extends State<TokenEntry> {
   bool loading = false;
   String? errorMessage;
 
-  // Look up event by its scanning token
+  // Validate token and fetch event details
   Future<Map?> fetchEventByToken(String scanningToken) async {
     try {
-      print("LOOKING UP EVENT WITH TOKEN: $scanningToken");
+      print("VALIDATING TOKEN: $scanningToken");
 
-      // First verify the token is valid
-      final verifyResponse = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/api/bookings/verify'),
-        body: {
-          'event_token': scanningToken,
-          'booking_code': 'TOKEN_CHECK',
-        },
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiUrl}/events/get_by_token'),
+        body: {'event_token': scanningToken},
       ).timeout(const Duration(seconds: 10));
 
-      print("TOKEN CHECK STATUS: ${verifyResponse.statusCode}");
+      print("GET BY TOKEN STATUS: ${response.statusCode}");
+      print("GET BY TOKEN BODY: ${response.body}");
 
-      // 200 or 400 means token exists, anything else means invalid
-      if (verifyResponse.statusCode != 200 &&
-          verifyResponse.statusCode != 400) {
-        return null;
-      }
-
-      // Token is valid — try to get full event details
-      // Load saved session to use Bearer + cookie
-      final session = await SessionManager.loadSession();
-      final token = session?['token'] ?? '';
-      final cookie = session?['sessionCookie'] ?? '';
-
-      if (token.isNotEmpty) {
-        final headers = {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-          if (cookie.isNotEmpty) 'Cookie': 'ci_session=$cookie',
-        };
-
-        final eventsResponse = await http.get(
-          Uri.parse(AppConfig.eventsGet),
-          headers: headers,
-        ).timeout(const Duration(seconds: 10));
-
-        print("EVENTS LOOKUP STATUS: ${eventsResponse.statusCode}");
-
-        if (eventsResponse.statusCode == 200 &&
-            eventsResponse.body.isNotEmpty) {
-          final decoded = jsonDecode(eventsResponse.body);
-          final data = decoded['data'];
-          if (data is List) {
-            for (final event in data) {
-              final eventToken =
-                  event['ticket_scanning_token'] ?? event['token'] ?? '';
-              if (eventToken.toString().toUpperCase() ==
-                  scanningToken.toUpperCase()) {
-                print("MATCHED EVENT: ${event['event_name']}");
-                return Map<String, dynamic>.from(event);
-              }
-            }
-          }
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded['status'] == 200 && decoded['data'] != null) {
+          return Map<String, dynamic>.from(decoded['data']);
         }
       }
 
-      // Token valid but no matching event in user's list
-      // Return minimal map so scanning still works
-      return {
-        'event_name': 'Event',
-        'event_location': '',
-        'ticket_scanning_token': scanningToken,
-        'token': scanningToken,
-        'bookings_count': 0,
-      };
-
+      return null;
     } catch (e) {
-      print("TOKEN LOOKUP ERROR: $e");
+      print("TOKEN VALIDATION ERROR: $e");
       return null;
     }
   }
@@ -119,7 +69,7 @@ class _TokenEntryState extends State<TokenEntry> {
           builder: (context) => ScanCode(
             event: event,
             token: token,
-            eventToken: token,
+            eventToken: event['ticket_scanning_token'] ?? token,
           ),
         ),
       );
