@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ticketkona/screens/scan_code.dart';
 import 'package:ticketkona/theme/colors.dart';
 import 'package:ticketkona/config.dart';
+import 'package:ticketkona/services/session_manager.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -23,7 +24,8 @@ class _TokenEntryState extends State<TokenEntry> {
     try {
       print("LOOKING UP EVENT WITH TOKEN: $scanningToken");
 
-      final response = await http.post(
+      // First verify the token is valid
+      final verifyResponse = await http.post(
         Uri.parse('${AppConfig.baseUrl}/api/bookings/verify'),
         body: {
           'event_token': scanningToken,
@@ -31,23 +33,62 @@ class _TokenEntryState extends State<TokenEntry> {
         },
       ).timeout(const Duration(seconds: 10));
 
-      print("TOKEN CHECK STATUS: ${response.statusCode}");
-      print("TOKEN CHECK BODY: ${response.body}");
+      print("TOKEN CHECK STATUS: ${verifyResponse.statusCode}");
 
-      // Any response (even 400) means the token exists
-      // A 500 or connection error means token is invalid
-      if (response.statusCode == 200 || response.statusCode == 400) {
-        // Token is valid — build a minimal event map
-        return {
-          'event_name': 'Event',
-          'event_location': '',
-          'ticket_scanning_token': scanningToken,
-          'token': scanningToken,
-          'bookings_count': 0,
-        };
+      // 200 or 400 means token exists, anything else means invalid
+      if (verifyResponse.statusCode != 200 &&
+          verifyResponse.statusCode != 400) {
+        return null;
       }
 
-      return null;
+      // Token is valid — try to get full event details
+      // Load saved session to use Bearer + cookie
+      final session = await SessionManager.loadSession();
+      final token = session?['token'] ?? '';
+      final cookie = session?['sessionCookie'] ?? '';
+
+      if (token.isNotEmpty) {
+        final headers = {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          if (cookie.isNotEmpty) 'Cookie': 'ci_session=$cookie',
+        };
+
+        final eventsResponse = await http.get(
+          Uri.parse(AppConfig.eventsGet),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
+
+        print("EVENTS LOOKUP STATUS: ${eventsResponse.statusCode}");
+
+        if (eventsResponse.statusCode == 200 &&
+            eventsResponse.body.isNotEmpty) {
+          final decoded = jsonDecode(eventsResponse.body);
+          final data = decoded['data'];
+          if (data is List) {
+            for (final event in data) {
+              final eventToken =
+                  event['ticket_scanning_token'] ?? event['token'] ?? '';
+              if (eventToken.toString().toUpperCase() ==
+                  scanningToken.toUpperCase()) {
+                print("MATCHED EVENT: ${event['event_name']}");
+                return Map<String, dynamic>.from(event);
+              }
+            }
+          }
+        }
+      }
+
+      // Token valid but no matching event in user's list
+      // Return minimal map so scanning still works
+      return {
+        'event_name': 'Event',
+        'event_location': '',
+        'ticket_scanning_token': scanningToken,
+        'token': scanningToken,
+        'bookings_count': 0,
+      };
+
     } catch (e) {
       print("TOKEN LOOKUP ERROR: $e");
       return null;
@@ -100,7 +141,6 @@ class _TokenEntryState extends State<TokenEntry> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
 
-              // Logo
               Image.asset('assets/images/logo.png', height: 80),
               const SizedBox(height: 30),
 
@@ -127,7 +167,6 @@ class _TokenEntryState extends State<TokenEntry> {
 
               const SizedBox(height: 30),
 
-              // Token input
               TextField(
                 controller: tokenController,
                 cursorColor: CustomColors.primaryColor,
@@ -163,7 +202,6 @@ class _TokenEntryState extends State<TokenEntry> {
                 ),
               ),
 
-              // Error message
               if (errorMessage != null) ...[
                 const SizedBox(height: 8),
                 Row(
@@ -186,7 +224,6 @@ class _TokenEntryState extends State<TokenEntry> {
 
               SizedBox(height: MediaQuery.of(context).size.height / 20),
 
-              // Scan button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -223,7 +260,6 @@ class _TokenEntryState extends State<TokenEntry> {
 
               const SizedBox(height: 20),
 
-              // Back button
               TextButton.icon(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back, size: 16),

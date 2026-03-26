@@ -110,6 +110,44 @@ class _LoginPageState extends State<LoginPage>
     return valid;
   }
 
+  void _openForgotPassword() {
+    // Open browser using Android intent via platform channel
+    const forgotPasswordUrl = '${AppConfig.baseUrl}/users/register/forgot_pass';
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Reset Password"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("To reset your password, visit:"),
+            const SizedBox(height: 8),
+            SelectableText(
+              forgotPasswordUrl,
+              style: const TextStyle(
+                color: Color(0xFF01875f),
+                decoration: TextDecoration.underline,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Copy the link and open it in your browser to reset your password.",
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
   void signUserIn() async {
     if (!_validate()) {
       _shake();
@@ -409,11 +447,7 @@ class _LoginPageState extends State<LoginPage>
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.only(left: 12),
                           ),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Please contact admin to reset password.")),
-                            );
-                          },
+                          onPressed: () => _openForgotPassword(),
                           child: const Text("Forgot Password?"),
                         ),
                       ],
