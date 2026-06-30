@@ -1,130 +1,223 @@
 import 'package:flutter/material.dart';
 import 'package:ticketkona/screens/token_entry.dart';
 import 'package:ticketkona/screens/login.dart';
+import 'package:ticketkona/screens/support_page.dart';
+import 'package:ticketkona/screens/settings_page.dart';
+import 'package:ticketkona/screens/onboarding_screen.dart';
 import 'package:ticketkona/theme/colors.dart';
 
-class Home extends StatelessWidget {
+// ── Bottom nav shell — Home / Support / Settings ───────────────────────────
+class Home extends StatefulWidget {
   const Home({super.key});
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  int _selectedTab = 0;
+
+  final List<Widget> _pages = const [
+    _HomeTab(),
+    SupportPage(),
+    SettingsPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async {
-        return true;
-      },
+      onWillPop: () async => true,
       child: SafeArea(
         child: Scaffold(
           backgroundColor: CustomColors.lightGreyScaffold,
-          body: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/qr_illustration.png',
-                    width: MediaQuery.of(context).size.width / 1.5,
-                  ),
-                ],
+          body: _pages[_selectedTab],
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _selectedTab,
+            selectedItemColor: CustomColors.primaryColor,
+            unselectedItemColor: Colors.grey,
+            type: BottomNavigationBarType.fixed,
+            onTap: (index) => setState(() => _selectedTab = index),
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home),
+                label: 'Home',
               ),
-              SizedBox(
-                height: MediaQuery.of(context).size.height / 6,
+              BottomNavigationBarItem(
+                icon: Icon(Icons.support_agent_outlined),
+                activeIcon: Icon(Icons.support_agent),
+                label: 'Support',
               ),
-              Text(
-                'Conferena',
-                style: TextStyle(
-                  color: CustomColors.textBlack,
-                  fontSize: MediaQuery.of(context).size.width / 18,
-                ),
-                textAlign: TextAlign.center,
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                activeIcon: Icon(Icons.settings),
+                label: 'Settings',
               ),
-              SizedBox(
-                height: MediaQuery.of(context).size.height / 40,
-              ),
-              Text(
-                'Scan the QR code on a ticket to confirm its validity.',
-                style: TextStyle(
-                  color: CustomColors.textGrey,
-                  fontSize: MediaQuery.of(context).size.width / 26,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(
-                height: MediaQuery.of(context).size.height / 12,
-              ),
-
-              // Start scanning using token 
-              Row(
-                children: [
-                  SizedBox(width: MediaQuery.of(context).size.width / 6),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: CustomColors.primaryColor,
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => TokenEntry(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.qr_code_scanner,
-                        color: CustomColors.textWhite,
-                      ),
-                      label: Text(
-                        'SCAN WITH TOKEN',
-                        style: TextStyle(
-                          color: CustomColors.textWhite,
-                          fontSize: MediaQuery.of(context).size.width / 26,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: MediaQuery.of(context).size.width / 6),
-                ],
-              ),
-
-              SizedBox(
-                height: MediaQuery.of(context).size.height / 40,
-              ),
-
-              // NEW: view events list
-              // LOGIN TO VIEW EVENTS
-Row(
-  children: [
-    SizedBox(width: MediaQuery.of(context).size.width / 6),
-    Expanded(
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: CustomColors.primaryColor,
-        ),
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const LoginPage(),
-            ),
-          );
-        },
-        icon: const Icon(
-          Icons.login,
-          color: CustomColors.textWhite,
-        ),
-        label: Text(
-          'LOGIN TO VIEW EVENTS',
-          style: TextStyle(
-            color: CustomColors.textWhite,
-            fontSize: MediaQuery.of(context).size.width / 26,
+            ],
           ),
         ),
       ),
-    ),
-    SizedBox(width: MediaQuery.of(context).size.width / 6),
-  ],
-)
-            ],
-          ),
+    );
+  }
+}
+
+// ── Home tab content ─────────────────────────────────────────────────────
+class _HomeTab extends StatelessWidget {
+  const _HomeTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+
+            // Logo / brand text
+            RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: MediaQuery.of(context).size.width / 14,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Arial',
+                ),
+                children: [
+                  TextSpan(
+                    text: 'CONFE',
+                    style: TextStyle(color: CustomColors.textBlack),
+                  ),
+                  TextSpan(
+                    text: 'RENA',
+                    style: TextStyle(color: CustomColors.primaryColor),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: MediaQuery.of(context).size.height / 30),
+
+            // Rounded green QR illustration card
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: CustomColors.primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Image.asset(
+                'assets/images/qr_illustration.png',
+                width: MediaQuery.of(context).size.width / 2.2,
+              ),
+            ),
+
+            SizedBox(height: MediaQuery.of(context).size.height / 25),
+
+            Text(
+              'Conferena',
+              style: TextStyle(
+                color: CustomColors.textBlack,
+                fontSize: MediaQuery.of(context).size.width / 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+            SizedBox(height: MediaQuery.of(context).size.height / 70),
+
+            Text(
+              'Scan the QR code on a ticket to confirm its validity.',
+              style: TextStyle(
+                color: CustomColors.textGrey,
+                fontSize: MediaQuery.of(context).size.width / 26,
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+            SizedBox(height: MediaQuery.of(context).size.height / 16),
+
+            // Scan with token button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CustomColors.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TokenEntry()),
+                  );
+                },
+                icon: const Icon(Icons.qr_code_scanner),
+                label: Text(
+                  'SCAN WITH TOKEN',
+                  style: TextStyle(
+                    fontSize: MediaQuery.of(context).size.width / 26,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Organizer Login button (renamed from "Login to View Events")
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CustomColors.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                  );
+                },
+                icon: const Icon(Icons.login),
+                label: Text(
+                  'ORGANIZER LOGIN',
+                  style: TextStyle(
+                    fontSize: MediaQuery.of(context).size.width / 26,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            // How It Works link — opens onboarding slides
+            TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const OnboardingScreen(fromHome: true),
+                  ),
+                );
+              },
+              icon: Icon(
+                Icons.help_outline,
+                size: 16,
+                color: CustomColors.primaryColor,
+              ),
+              label: Text(
+                'How It Works',
+                style: TextStyle(color: CustomColors.primaryColor),
+              ),
+            ),
+
+          ],
         ),
       ),
     );

@@ -2,266 +2,291 @@ import 'package:flutter/material.dart';
 import 'package:ticketkona/services/event.dart';
 import 'package:ticketkona/theme/colors.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'dart:convert'; 
+import 'dart:convert';
 
 class ScanCode extends StatefulWidget {
   final Map event;
   final String token;
-final String eventToken;
+  final String eventToken;
 
-const ScanCode({
-  super.key,
-  required this.event,
-  required this.token,
-  required this.eventToken,
-});
+  const ScanCode({
+    super.key,
+    required this.event,
+    required this.token,
+    required this.eventToken,
+  });
 
   @override
   State<ScanCode> createState() => _ScanCodeState();
 }
 
-class _ScanCodeState extends State<ScanCode> {
+class _ScanCodeState extends State<ScanCode>
+    with SingleTickerProviderStateMixin {
+
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
 
-  Barcode? result;
   QRViewController? controller;
   bool? valid;
-  bool? alreadyUsed; 
+  bool? alreadyUsed;
   bool validating = false;
-  String? scanCount; 
+  String? scanCount;
   String? bookingCount;
+  String? lastScannedCode;
+
+  // Animation for result panel
+  late AnimationController _animController;
+  late Animation<Offset> _slideAnim;
 
   @override
   void initState() {
     super.initState();
-    final count = widget.event['bookings_count'] ?? widget.event['tickets_sold'] ?? widget.event['total_bookings'];
+    final count = widget.event['bookings_count'] ??
+        widget.event['tickets_sold'] ??
+        widget.event['total_bookings'];
     bookingCount = count != null ? count.toString() : '0';
-    print("SCAN PAGE OPENED");
-    print("EVENT TOKEN: \${widget.eventToken}");
-    print("EVENT: \${widget.event}");
-    print("TOKEN: \${widget.token}");
+
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    controller?.dispose();
+    super.dispose();
+  }
+
+  void _showResult() {
+    _animController.forward(from: 0);
+  }
+
+  void _resetScan() {
+    setState(() {
+      valid = null;
+      alreadyUsed = null;
+      validating = false;
+      scanCount = null;
+      lastScannedCode = null;
+    });
+    _animController.reverse();
+    controller?.resumeCamera();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        backgroundColor: CustomColors.lightGreyScaffold,
-        body: Column(
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final eventName = widget.event['event_name'] ??
+        widget.event['name'] ?? 'Event';
+    final location = widget.event['event_location'] ??
+        widget.event['location'] ?? '';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF111111),
+      body: SafeArea(
+        child: Stack(
           children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height / 10,
-              child: Row(
-                children: [
-                  SizedBox(width: MediaQuery.of(context).size.width / 40),
-                  TextButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: TextButton.styleFrom(
-                          backgroundColor: Colors.black12,
-                          foregroundColor: CustomColors.textGrey),
-                      icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
-                      label: Text(
-                        'Back to Events',
+
+            // ── Full dark background column ──────────────────────────
+            Column(
+              children: [
+
+                // ── Top bar ─────────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: sw * 0.03, vertical: 8),
+                  child: Row(
+                    children: [
+                      _NavButton(
+                        icon: Icons.arrow_back_ios_new_rounded,
+                        label: 'Back',
+                        onTap: () => Navigator.pop(context),
+                      ),
+                      const Spacer(),
+                      _NavButton(
+                        icon: Icons.refresh_rounded,
+                        label: 'Resume',
+                        onTap: _resetScan,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Event info ───────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: sw * 0.05),
+                  child: Column(
+                    children: [
+                      Text(
+                        eventName,
                         style: TextStyle(
-                          fontSize: MediaQuery.of(context).size.width / 26,
+                          color: Colors.white,
+                          fontSize: sw / 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                      )),
-                  const Expanded(child: SizedBox()),
-                  TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          valid = null;
-                          alreadyUsed = null; 
-                          validating = false;
-                          scanCount = null;
-                        });
-                        controller?.resumeCamera();
-                      },
-                      style: TextButton.styleFrom(
-                          backgroundColor: Colors.black12,
-                          foregroundColor: CustomColors.textGrey),
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: Text(
-                        'Resume Scan',
-                        style: TextStyle(
-                          fontSize: MediaQuery.of(context).size.width / 26,
-                        ),
-                      )),
-                  SizedBox(width: MediaQuery.of(context).size.width / 40),
-                ],
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height / 55),
-            Text(
-              widget.event['event_name'] ?? widget.event['name'] ?? 'Event',
-              style: TextStyle(
-                color: CustomColors.textBlack,
-                fontSize: MediaQuery.of(context).size.width / 18,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height / 40),
-            Text(
-              widget.event['event_name'] ?? widget.event['name'] ?? 'Event',
-              style: TextStyle(
-                color: CustomColors.textGrey,
-                fontSize: MediaQuery.of(context).size.width / 26,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height / 120),
-            Text(
-              'Total Bookings: $bookingCount', 
-              style: TextStyle(
-                color: CustomColors.textGrey,
-                fontSize: MediaQuery.of(context).size.width / 28,
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height / 20),
-            Text(
-              'Point your camera at the QR Code to scan.',
-              style: TextStyle(
-                color: CustomColors.textGrey,
-                fontSize: MediaQuery.of(context).size.width / 26,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height / 80),
-            SizedBox(
-              height: MediaQuery.of(context).size.width,
-              child: QRView(
-                key: qrKey,
-                onQRViewCreated: _onQRViewCreated,
-              ),
-            ),
-            Expanded(
-              child: Container(
-                width: MediaQuery.of(context).size.width,
-                color: valid == true
-                    ? Colors.green
-                    : alreadyUsed == true
-                        ? Colors.amber[700]
-                        : valid == false
-                            ? Colors.red
-                            : CustomColors.lightGreyScaffold,
-                child: validating
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Validating Ticket...',
-                            style: TextStyle(
-                              color: CustomColors.textGrey,
-                              fontSize:
-                                  MediaQuery.of(context).size.width / 26,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (location.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.location_on,
+                                size: 13, color: Colors.white54),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                location,
+                                style: const TextStyle(
+                                    color: Colors.white54, fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      )
-                    : valid == true
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.check_circle_rounded,
-                                color: CustomColors.lightGreyScaffold,
-                                size: MediaQuery.of(context).size.width / 4.5,
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: CustomColors.primaryColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: CustomColors.primaryColor.withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people,
+                                size: 13,
+                                color: CustomColors.primaryColor),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$bookingCount bookings',
+                              style: TextStyle(
+                                color: CustomColors.primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
-                              Text(
-                                'Valid Ticket,Attendee checked in',
-                                style: TextStyle(
-                                  color: CustomColors.textWhite,
-                                  fontSize:
-                                      MediaQuery.of(context).size.width / 26,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: sh * 0.02),
+
+                // ── Scan hint ────────────────────────────────────────
+                Text(
+                  'Point camera at QR code',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: sw / 28,
+                  ),
+                ),
+
+                SizedBox(height: sh * 0.015),
+
+                // ── QR Viewfinder ────────────────────────────────────
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Camera feed
+                      QRView(
+                        key: qrKey,
+                        onQRViewCreated: _onQRViewCreated,
+                      ),
+
+                      // Dark overlay with clear center
+                      _ScanOverlay(size: sw * 0.65),
+
+                      // Validating overlay
+                      if (validating)
+                        Container(
+                          color: Colors.black54,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
                                 ),
-                              ),
-                              if (scanCount != null)
+                                const SizedBox(height: 16),
                                 Text(
-                                  'Scan Count: $scanCount',
+                                  'Validating...',
                                   style: TextStyle(
-                                    color: CustomColors.textWhite,
-                                    fontSize:
-                                        MediaQuery.of(context).size.width / 28,
+                                    color: Colors.white,
+                                    fontSize: sw / 26,
                                   ),
                                 ),
-                            ],
-                          )
-                        : alreadyUsed == true
-                            ? Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: CustomColors.lightGreyScaffold,
-                                    size: MediaQuery.of(context).size.width / 4.5,
-                                  ),
-                                  Text(
-                                    'Ticket already Used',
-                                    style: TextStyle(
-                                      color: CustomColors.textWhite,
-                                      fontSize:
-                                          MediaQuery.of(context).size.width / 26,
-                                    ),
-                                  ),
-                                  if (scanCount != null)
-                                    Text(
-                                      'Scan Count: $scanCount',
-                                      style: TextStyle(
-                                        color: CustomColors.textWhite,
-                                        fontSize:
-                                            MediaQuery.of(context).size.width / 28,
-                                      ),
-                                    ),
-                                ],
-                              )
-                            : valid == false
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.cancel_rounded,
-                                        color: CustomColors.lightGreyScaffold,
-                                        size: MediaQuery.of(context).size.width / 4.5,
-                                      ),
-                                      Text(
-                                        'Invalid Ticket',
-                                        style: TextStyle(
-                                          color: CustomColors.textWhite,
-                                          fontSize:
-                                              MediaQuery.of(context).size.width / 26,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : const SizedBox(),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: sh * 0.015),
+              ],
+            ),
+
+            // ── Sliding result panel ─────────────────────────────────
+            if (valid != null || alreadyUsed != null)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: _ResultPanel(
+                    valid: valid,
+                    alreadyUsed: alreadyUsed,
+                    scanCount: scanCount,
+                    scannedCode: lastScannedCode,
+                    onResume: _resetScan,
+                    screenWidth: sw,
+                  ),
+                ),
               ),
-            )
+
           ],
         ),
       ),
     );
   }
 
-  _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (scanData.code != null) {
-        controller.pauseCamera();
+  void _onQRViewCreated(QRViewController ctrl) {
+    controller = ctrl;
+    ctrl.scannedDataStream.listen((scanData) {
+      if (scanData.code != null && !validating) {
+        ctrl.pauseCamera();
         setState(() {
           valid = null;
+          alreadyUsed = null;
           validating = true;
           scanCount = null;
+          lastScannedCode = scanData.code;
         });
 
-        print("=== SCANNING QR ===");
-        print("EVENT TOKEN: \${widget.eventToken}");
-        print("SCANNED CODE: \${scanData.code}");
-        validateTicket(widget.eventToken, scanData.code as String).then((value) {
-          print("VALIDATE RESPONSE: \$value");
+        validateTicket(widget.eventToken, scanData.code as String)
+            .then((value) {
           if (value['status'] == 200) {
             var data;
             try {
@@ -270,97 +295,364 @@ class _ScanCodeState extends State<ScanCode> {
               data = value['data'];
             }
 
-            final int count = int.tryParse(data['scan_count'].toString()) ?? 0;
+            final int count =
+                int.tryParse(data['scan_count'].toString()) ?? 0;
 
-            if (count == 1) {
-              setState(() {
+            setState(() {
+              validating = false;
+              if (count == 1) {
                 valid = true;
                 alreadyUsed = false;
-                validating = false;
                 scanCount = data['scan_count'].toString();
-              });
-
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                backgroundColor: Colors.green,
-                width: 200,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(milliseconds: 1500),
-                content: Text(
-                  value ["message"],
-                  textAlign: TextAlign.center,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
-              ));
-            } 
-            else if (count > 1) {
-              setState(() {
+              } else {
                 valid = false;
                 alreadyUsed = true;
-                validating = false;
                 scanCount = data['scan_count'].toString();
-              });
-
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                backgroundColor: Colors.amber[700],
-                width: 200,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(milliseconds: 1500),
-                content:  Text(
-                  value ["message"],
-                  textAlign: TextAlign.center,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
-              ));
-            }
-          } 
-          else {
+              }
+            });
+            _showResult();
+          } else {
             setState(() {
               valid = false;
+              alreadyUsed = false;
               validating = false;
             });
-
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              backgroundColor: Colors.red,
-              width: 200,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(milliseconds: 1500),
-              content:  Text(
-                value ["message"],
-                textAlign: TextAlign.center,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15.0),
-              ),
-            ));
-          } 
-          
+            _showResult();
+          }
         }).catchError((error) {
-          setState(() {
-            validating = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            width: 200,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(milliseconds: 1500),
-            content: const Text(
-              'Something went wrong. Please try again.',
-              textAlign: TextAlign.center,
+          setState(() => validating = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Network error. Please try again.'),
+              backgroundColor: Colors.red.shade700,
+              behavior: SnackBarBehavior.floating,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15.0),
-            ),
-          ));
+          );
         });
       }
     });
   }
 
-
   validateTicket(String token, String code) async {
     return await EventService().validateTicket(token, code);
+  }
+}
+
+// ── Nav button ───────────────────────────────────────────────────────────────
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NavButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white70, size: 15),
+            const SizedBox(width: 6),
+            Text(label,
+                style:
+                    const TextStyle(color: Colors.white70, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Scan overlay with corner brackets ───────────────────────────────────────
+class _ScanOverlay extends StatelessWidget {
+  final double size;
+  const _ScanOverlay({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _OverlayPainter(size: size),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _OverlayPainter extends CustomPainter {
+  final double size;
+  const _OverlayPainter({required this.size});
+
+  @override
+  void paint(Canvas canvas, Size canvasSize) {
+    final paint = Paint()..color = Colors.black.withOpacity(0.6);
+    final cx = canvasSize.width / 2;
+    final cy = canvasSize.height / 2;
+    final half = size / 2;
+
+    // Draw dark overlay with clear center
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height))
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromCenter(
+            center: Offset(cx, cy), width: size, height: size),
+        const Radius.circular(12),
+      ))
+      ..fillType = PathFillType.evenOdd;
+    canvas.drawPath(path, paint);
+
+    // Draw corner brackets
+    final bracketPaint = Paint()
+      ..color = const Color(0xFF01875f)
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    const bracketLen = 24.0;
+    final left = cx - half;
+    final top = cy - half;
+    final right = cx + half;
+    final bottom = cy + half;
+    const r = 12.0;
+
+    // Top-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(left + r + bracketLen, top)
+        ..lineTo(left + r, top)
+        ..arcToPoint(Offset(left, top + r),
+            radius: const Radius.circular(r))
+        ..lineTo(left, top + r + bracketLen),
+      bracketPaint,
+    );
+    // Top-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(right - r - bracketLen, top)
+        ..lineTo(right - r, top)
+        ..arcToPoint(Offset(right, top + r),
+            radius: const Radius.circular(r), clockwise: false)
+        ..lineTo(right, top + r + bracketLen),
+      bracketPaint,
+    );
+    // Bottom-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(left, bottom - r - bracketLen)
+        ..lineTo(left, bottom - r)
+        ..arcToPoint(Offset(left + r, bottom),
+            radius: const Radius.circular(r), clockwise: false)
+        ..lineTo(left + r + bracketLen, bottom),
+      bracketPaint,
+    );
+    // Bottom-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(right, bottom - r - bracketLen)
+        ..lineTo(right, bottom - r)
+        ..arcToPoint(Offset(right - r, bottom),
+            radius: const Radius.circular(r))
+        ..lineTo(right - r - bracketLen, bottom),
+      bracketPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ── Result panel ─────────────────────────────────────────────────────────────
+class _ResultPanel extends StatelessWidget {
+  final bool? valid;
+  final bool? alreadyUsed;
+  final String? scanCount;
+  final String? scannedCode;
+  final VoidCallback onResume;
+  final double screenWidth;
+
+  const _ResultPanel({
+    required this.valid,
+    required this.alreadyUsed,
+    required this.scanCount,
+    required this.scannedCode,
+    required this.onResume,
+    required this.screenWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color bgColor;
+    Color iconColor;
+    IconData icon;
+    String title;
+    String subtitle;
+
+    if (valid == true) {
+      bgColor = const Color(0xFF1A7A4A);
+      iconColor = const Color(0xFF4ADE80);
+      icon = Icons.check_circle_rounded;
+      title = 'Valid Ticket';
+      subtitle = 'Attendee checked in successfully';
+    } else if (alreadyUsed == true) {
+      bgColor = const Color(0xFF7A5A1A);
+      iconColor = const Color(0xFFFBBF24);
+      icon = Icons.warning_amber_rounded;
+      title = 'Already Used';
+      subtitle = 'This ticket has been scanned before';
+    } else {
+      bgColor = const Color(0xFF7A1A1A);
+      iconColor = const Color(0xFFF87171);
+      icon = Icons.cancel_rounded;
+      title = 'Invalid Ticket';
+      subtitle = 'This ticket is not valid for this event';
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: iconColor, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          if (scanCount != null || scannedCode != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  if (scannedCode != null)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Booking Code',
+                              style: TextStyle(
+                                  color: Colors.white54, fontSize: 11)),
+                          Text(scannedCode!,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1)),
+                        ],
+                      ),
+                    ),
+                  if (scanCount != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('Scan count',
+                            style: TextStyle(
+                                color: Colors.white54, fontSize: 11)),
+                        Text(scanCount!,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 20),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: bgColor,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: onResume,
+              icon: const Icon(Icons.qr_code_scanner, size: 18),
+              label: const Text(
+                'Scan Next Ticket',
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

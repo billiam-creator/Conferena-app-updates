@@ -6,7 +6,6 @@ import 'package:ticketkona/screens/home.dart';
 import 'package:ticketkona/theme/colors.dart';
 
 class EventsList extends StatefulWidget {
-
   final String token;
   final String? sessionCookie;
 
@@ -21,14 +20,42 @@ class EventsList extends StatefulWidget {
 }
 
 class _EventsListState extends State<EventsList> {
-
-  List events  = [];
+  List events = [];
+  List filteredEvents = [];
   bool loading = true;
+
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchEvents();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        filteredEvents = events;
+      } else {
+        filteredEvents = events.where((event) {
+          final name = (event['event_name'] ?? event['name'] ?? '')
+              .toString()
+              .toLowerCase();
+          final location = (event['event_location'] ?? event['location'] ?? '')
+              .toString()
+              .toLowerCase();
+          return name.contains(query) || location.contains(query);
+        }).toList();
+      }
+    });
   }
 
   Future<void> fetchEvents() async {
@@ -39,7 +66,7 @@ class _EventsListState extends State<EventsList> {
         sessionCookie: widget.sessionCookie,
       );
 
-      final status    = response['status'];
+      final status = response['status'];
       final isSuccess = status == 200 || status == '200';
 
       if (isSuccess) {
@@ -52,14 +79,22 @@ class _EventsListState extends State<EventsList> {
         } else if (response['events'] is List) {
           extracted = response['events'];
         }
-        setState(() { events = extracted; loading = false; });
+        setState(() {
+          events = extracted;
+          filteredEvents = extracted;
+          loading = false;
+        });
       } else {
-        setState(() { events = []; loading = false; });
+        setState(() {
+          events = [];
+          filteredEvents = [];
+          loading = false;
+        });
       }
-
     } catch (e) {
       print("EVENT FETCH ERROR: $e");
       setState(() => loading = false);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Unable to load events.")),
@@ -90,8 +125,14 @@ class _EventsListState extends State<EventsList> {
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () { Navigator.pop(context); _logout(); },
-            child: const Text("Log Out", style: TextStyle(color: Colors.red)),
+            onPressed: () {
+              Navigator.pop(context);
+              _logout();
+            },
+            child: const Text(
+              "Log Out",
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -101,7 +142,10 @@ class _EventsListState extends State<EventsList> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async { _confirmLogout(); return false; },
+      onWillPop: () async {
+        _confirmLogout();
+        return false;
+      },
       child: Scaffold(
         backgroundColor: CustomColors.lightGreyScaffold,
         appBar: AppBar(
@@ -116,37 +160,82 @@ class _EventsListState extends State<EventsList> {
             ),
           ],
         ),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: fetchEvents,
-                color: CustomColors.primaryColor,
-                child: events.isEmpty
-                    ? _buildEmptyState()
-                    : _buildEventsList(),
+
+        body: Column(
+          children: [
+
+            // ── Search bar ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search events by name or location',
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
+            ),
+
+            // ── Events list ─────────────────────────────────────────
+            Expanded(
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: fetchEvents,
+                      color: CustomColors.primaryColor,
+                      child: filteredEvents.isEmpty
+                          ? _buildEmptyState()
+                          : _buildEventsList(),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    final bool isSearching = _searchController.text.isNotEmpty;
     return ListView(
       children: [
-        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-        const Icon(Icons.event_busy, size: 90, color: Colors.grey),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+        Icon(
+          isSearching ? Icons.search_off : Icons.event_busy,
+          size: 90,
+          color: Colors.grey,
+        ),
         const SizedBox(height: 20),
-        const Text(
-          "No events assigned yet",
+        Text(
+          isSearching ? "No matching events" : "No events assigned yet",
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Text(
-            "Pull down to refresh, or contact the organizer if you should have access to an event.",
+            isSearching
+                ? "Try a different search term."
+                : "Pull down to refresh, or contact the organizer if you should have access to an event.",
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 15),
+            style: const TextStyle(color: Colors.grey, fontSize: 15),
           ),
         ),
       ],
@@ -156,18 +245,27 @@ class _EventsListState extends State<EventsList> {
   Widget _buildEventsList() {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-      itemCount: events.length,
+      itemCount: filteredEvents.length,
       itemBuilder: (context, index) {
-        final Map event = events[index];
-        final bookingsCount = event['bookings_count'] ?? event['total_bookings'] ?? 0;
-        // Live server uses 'event_banner' with relative path, staging used 'banner' with full URL
-        final String? rawBanner = event['event_banner'] ?? event['banner'];
+        final Map event = filteredEvents[index];
+
+        final bookingsCount =
+            event['bookings_count'] ?? event['total_bookings'] ?? 0;
+
+        final String? rawBanner =
+            event['event_banner'] ?? event['banner'];
+
         final String? bannerUrl = rawBanner != null && rawBanner.isNotEmpty
-            ? (rawBanner.startsWith('http') ? rawBanner : 'https://go.conferena.com/uploads/$rawBanner')
+            ? (rawBanner.startsWith('http')
+                ? rawBanner
+                : 'https://go.conferena.com/uploads/$rawBanner')
             : null;
-        final String eventName = event['event_name'] ?? event['name'] ?? "Event";
-        final String location = event['event_location'] ?? event['location'] ?? "No location";
-        final String startDate = event['event_from_date'] ?? event['start_date'] ?? '';
+
+        final String eventName =
+            event['event_name'] ?? event['name'] ?? "Event";
+
+        final String location =
+            event['event_location'] ?? event['location'] ?? "No location";
 
         return GestureDetector(
           onTap: () {
@@ -177,7 +275,8 @@ class _EventsListState extends State<EventsList> {
                 builder: (_) => ScanCode(
                   event: event,
                   token: widget.token,
-                  eventToken: event['ticket_scanning_token'] ?? event['token'] ?? '',
+                  eventToken:
+                      event['ticket_scanning_token'] ?? event['token'] ?? '',
                 ),
               ),
             );
@@ -198,127 +297,60 @@ class _EventsListState extends State<EventsList> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // ── Banner image ─────────────────────────────────────
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                   child: Stack(
                     children: [
-
-                      // Banner image or placeholder
                       bannerUrl != null && bannerUrl.isNotEmpty
                           ? Image.network(
                               bannerUrl,
                               width: double.infinity,
                               height: 140,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _buildBannerPlaceholder(eventName),
-                              loadingBuilder: (_, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return _buildBannerPlaceholder(eventName);
-                              },
                             )
                           : _buildBannerPlaceholder(eventName),
-
-                      // Gradient overlay so text is readable over the banner
-                      Positioned(
-                        bottom: 0, left: 0, right: 0,
-                        child: Container(
-                          height: 70,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.65),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Event name overlaid on banner
-                      Positioned(
-                        bottom: 10, left: 12, right: 50,
-                        child: Text(
-                          eventName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(color: Colors.black45, blurRadius: 4),
-                            ],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                      // Scan icon button — top right
-                      Positioned(
-                        top: 10, right: 10,
-                        child: Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: CustomColors.primaryColor,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.qr_code_scanner,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-
                     ],
                   ),
                 ),
 
-                // ── Event details ────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                   child: Row(
                     children: [
-
-                      // Location
                       Expanded(
                         child: Row(
                           children: [
-                            const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                            const Icon(Icons.location_on,
+                                size: 14, color: Colors.grey),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 location,
-                                style: const TextStyle(color: Colors.grey, fontSize: 13),
                                 overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-
-                      const SizedBox(width: 12),
-
-                      // Bookings count pill
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: CustomColors.primaryColor.withOpacity(0.1),
+                          color:
+                              CustomColors.primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.people, size: 13, color: CustomColors.primaryColor),
+                            Icon(Icons.people,
+                                size: 13,
+                                color: CustomColors.primaryColor),
                             const SizedBox(width: 4),
                             Text(
                               "$bookingsCount",
@@ -331,33 +363,9 @@ class _EventsListState extends State<EventsList> {
                           ],
                         ),
                       ),
-
-                      // Date pill (only if date is set)
-                      if (startDate.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Text(
-                                startDate,
-                                style: const TextStyle(color: Colors.grey, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
                     ],
                   ),
                 ),
-
               ],
             ),
           ),
@@ -366,47 +374,16 @@ class _EventsListState extends State<EventsList> {
     );
   }
 
-  // Placeholder shown while image loads or if URL is missing/broken
   Widget _buildBannerPlaceholder(String eventName) {
     return Container(
       width: double.infinity,
       height: 140,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            CustomColors.primaryColor.withOpacity(0.7),
-            CustomColors.primaryColor,
-          ],
+      color: CustomColors.primaryColor.withOpacity(0.7),
+      child: Center(
+        child: Text(
+          eventName,
+          style: const TextStyle(color: Colors.white),
         ),
-      ),
-      child: Stack(
-        children: [
-          // Subtle pattern
-          Opacity(
-            opacity: 0.1,
-            child: Icon(
-              Icons.calendar_month,
-              size: 120,
-              color: Colors.white,
-            ),
-          ),
-          // Event name centered
-          Positioned(
-            bottom: 10, left: 12, right: 50,
-            child: Text(
-              eventName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }

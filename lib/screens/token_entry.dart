@@ -125,7 +125,7 @@ class _TokenEntryState extends State<TokenEntry> {
                 onChanged: (_) => setState(() => errorMessage = null),
                 onSubmitted: (_) => onScanPressed(),
                 decoration: InputDecoration(
-                  hintText: 'e.g. 693DAE5',
+                  hintText: 'e.g. 443XIE5',
                   hintStyle: TextStyle(color: Colors.grey[400]),
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
