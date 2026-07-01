@@ -1,9 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:ticketkona/config.dart';
 import 'package:ticketkona/screens/scan_code.dart';
 import 'package:ticketkona/theme/colors.dart';
-import 'package:ticketkona/config.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class TokenEntry extends StatefulWidget {
   const TokenEntry({super.key});
@@ -13,43 +14,43 @@ class TokenEntry extends StatefulWidget {
 }
 
 class _TokenEntryState extends State<TokenEntry> {
-
   final TextEditingController tokenController = TextEditingController();
+
   bool loading = false;
   String? errorMessage;
 
-  // Validate token and fetch event details
   Future<Map?> fetchEventByToken(String scanningToken) async {
     try {
-      print("VALIDATING TOKEN: $scanningToken");
-
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiUrl}/events/get_by_token'),
-        body: {'event_token': scanningToken},
-      ).timeout(const Duration(seconds: 10));
-
-      print("GET BY TOKEN STATUS: ${response.statusCode}");
-      print("GET BY TOKEN BODY: ${response.body}");
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.apiUrl}/events/get_by_token'),
+            body: {
+              'event_token': scanningToken,
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
+
         if (decoded['status'] == 200 && decoded['data'] != null) {
           return Map<String, dynamic>.from(decoded['data']);
         }
       }
 
       return null;
-    } catch (e) {
-      print("TOKEN VALIDATION ERROR: $e");
+    } catch (_) {
       return null;
     }
   }
 
-  void onScanPressed() async {
+  Future<void> onScanPressed() async {
     final token = tokenController.text.trim().toUpperCase();
 
     if (token.isEmpty) {
-      setState(() => errorMessage = "Please enter an event token");
+      setState(() {
+        errorMessage = "Please enter an event token";
+      });
       return;
     }
 
@@ -64,9 +65,11 @@ class _TokenEntryState extends State<TokenEntry> {
 
     if (event != null) {
       setState(() => loading = false);
-      Navigator.of(context).push(
+
+      Navigator.push(
+        context,
         MaterialPageRoute(
-          builder: (context) => ScanCode(
+          builder: (_) => ScanCode(
             event: event,
             token: token,
             eventToken: event['ticket_scanning_token'] ?? token,
@@ -76,151 +79,209 @@ class _TokenEntryState extends State<TokenEntry> {
     } else {
       setState(() {
         loading = false;
-        errorMessage = "Invalid event token. Please check and try again.";
+        errorMessage =
+            "Invalid event token. Please check and try again.";
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+    final media = MediaQuery.of(context);
 
-              Image.asset('assets/images/logo.png', height: 80),
-              const SizedBox(height: 30),
+    final h = media.size.height;
+    final w = media.size.width;
 
-              Text(
-                'Enter Event Token',
-                style: TextStyle(
-                  color: CustomColors.textBlack,
-                  fontSize: MediaQuery.of(context).size.width / 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+    final isSmall = h < 650;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.only(
+                left: w * .08,
+                right: w * .08,
+                top: isSmall ? 20 : 32,
+                bottom: media.viewInsets.bottom + 24,
               ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Enter the event scanning token to start validating tickets',
-                style: TextStyle(
-                  color: CustomColors.textGrey,
-                  fontSize: MediaQuery.of(context).size.width / 28,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight -
+                      media.padding.top,
                 ),
-                textAlign: TextAlign.center,
-              ),
+                child: IntrinsicHeight(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
 
-              const SizedBox(height: 30),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: isSmall ? 70 : 90,
+                      ),
 
-              TextField(
-                controller: tokenController,
-                cursorColor: CustomColors.primaryColor,
-                autofocus: true,
-                textCapitalization: TextCapitalization.characters,
-                onChanged: (_) => setState(() => errorMessage = null),
-                onSubmitted: (_) => onScanPressed(),
-                decoration: InputDecoration(
-                  hintText: 'e.g. 443XIE5',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      color: errorMessage != null
-                          ? Colors.red.shade400
-                          : Colors.grey.shade300,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      color: errorMessage != null
-                          ? Colors.red.shade500
-                          : CustomColors.primaryColor,
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  fillColor: errorMessage != null
-                      ? Colors.red.shade50
-                      : Colors.grey.shade100,
-                  filled: true,
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
-                ),
-              ),
+                      SizedBox(height: isSmall ? 22 : 32),
 
-              if (errorMessage != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 14, color: Colors.red.shade600),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        errorMessage!,
+                      Text(
+                        "Enter Event Token",
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.red.shade600,
-                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          fontSize: isSmall ? 24 : 28,
+                          color: CustomColors.textBlack,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
 
-              SizedBox(height: MediaQuery.of(context).size.height / 20),
+                      const SizedBox(height: 10),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CustomColors.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: loading ? null : onScanPressed,
-                  icon: loading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.white,
+                      Text(
+                        "Enter the event scanning token to start validating tickets.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: CustomColors.textGrey,
+                          fontSize: isSmall ? 14 : 16,
                         ),
-                  label: Text(
-                    loading ? 'Verifying...' : 'START SCANNING',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: MediaQuery.of(context).size.width / 26,
-                    ),
+                      ),
+
+                      SizedBox(height: isSmall ? 28 : 40),
+
+                      TextField(
+                        controller: tokenController,
+                        autofocus: true,
+                        cursorColor: CustomColors.primaryColor,
+                        textCapitalization:
+                            TextCapitalization.characters,
+                        onChanged: (_) {
+                          if (errorMessage != null) {
+                            setState(() {
+                              errorMessage = null;
+                            });
+                          }
+                        },
+                        onSubmitted: (_) => onScanPressed(),
+                        decoration: InputDecoration(
+                          hintText: "e.g. 443XIE5",
+                          prefixIcon:
+                              const Icon(Icons.vpn_key_outlined),
+                          filled: true,
+                          fillColor: errorMessage == null
+                              ? Colors.grey.shade100
+                              : Colors.red.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: errorMessage == null
+                                  ? Colors.grey.shade300
+                                  : Colors.red,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: errorMessage == null
+                                  ? CustomColors.primaryColor
+                                  : Colors.red,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      if (errorMessage != null) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.red.shade600,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: TextStyle(
+                                  color: Colors.red.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      SizedBox(height: isSmall ? 28 : 36),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                CustomColors.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              vertical: isSmall ? 14 : 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed:
+                              loading ? null : onScanPressed,
+                          icon: loading
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child:
+                                      CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.qr_code_scanner,
+                                ),
+                          label: Text(
+                            loading
+                                ? "Verifying..."
+                                : "START SCANNING",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text("Go Back"),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              CustomColors.textGrey,
+                        ),
+                      ),
+
+                      const Spacer(),
+                    ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              TextButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, size: 16),
-                label: const Text("Go Back"),
-                style: TextButton.styleFrom(
-                  foregroundColor: CustomColors.textGrey,
-                ),
-              ),
-
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
