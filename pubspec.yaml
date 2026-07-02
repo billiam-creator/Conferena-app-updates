@@ -15,6 +15,8 @@ dependencies:
   qr_code_scanner: ^1.0.1
   webview_flutter: ^4.13.0
   http: ^1.3.0
+  audioplayers: ^6.1.0      # scan result beep sounds
+  vibration: ^2.0.0         # scan result haptic feedback
 
 dev_dependencies:
   flutter_test:
@@ -33,3 +35,4 @@ flutter:
   uses-material-design: true
   assets:
    - assets/images/
+   - assets/sounds/

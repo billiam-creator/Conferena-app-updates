@@ -1,36 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ticketkona/screens/initializer.dart';
+import 'package:ticketkona/services/settings_manager.dart';
+import 'package:ticketkona/theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  runApp(const MyApp());
+
+  // Load persisted settings before first frame so theme is applied immediately
+  final settings = await SettingsManager.loadAll();
+
+  runApp(MyApp(initialSettings: settings));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  final AppSettings initialSettings;
+  const MyApp({super.key, required this.initialSettings});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late AppSettings _settings;
+
+  @override
+  void initState() {
+    super.initState();
+    _settings = widget.initialSettings;
+  }
+
+  void _onSettingsChanged(AppSettings updated) {
+    setState(() => _settings = updated);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'CONFERENA',
-      theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // Try running your application with "flutter run". You'll see the
-          // application has a blue toolbar. Then, without quitting the app, try
-          // changing the primarySwatch below to Colors.green and then invoke
-          // "hot reload" (press "r" in the console where you ran "flutter run",
-          // or simply save your changes to "hot reload" in a Flutter IDE).
-          // Notice that the counter didn't reset back to zero; the application
-          // is not restarted.
-          // primarySwatch: Colors.deepOrange,
-          colorScheme: ColorScheme.fromSwatch()
-              .copyWith(primary: const Color(0xFFF82249))),
-      debugShowCheckedModeBanner: false,
-      home: const Initializer(),
+    return AppSettingsProvider(
+      settings: _settings,
+      onChanged: _onSettingsChanged,
+      child: MaterialApp(
+        title: 'CONFERENA',
+        debugShowCheckedModeBanner: false,
+        themeMode: _settings.themeMode,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        home: const Initializer(),
+      ),
     );
   }
 }

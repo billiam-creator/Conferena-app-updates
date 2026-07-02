@@ -20,9 +20,9 @@ class EventsList extends StatefulWidget {
 }
 
 class _EventsListState extends State<EventsList> {
-  List events = [];
+  List events        = [];
   List filteredEvents = [];
-  bool loading = true;
+  bool loading       = true;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -42,19 +42,17 @@ class _EventsListState extends State<EventsList> {
   void _onSearchChanged() {
     final query = _searchController.text.trim().toLowerCase();
     setState(() {
-      if (query.isEmpty) {
-        filteredEvents = events;
-      } else {
-        filteredEvents = events.where((event) {
-          final name = (event['event_name'] ?? event['name'] ?? '')
-              .toString()
-              .toLowerCase();
-          final location = (event['event_location'] ?? event['location'] ?? '')
-              .toString()
-              .toLowerCase();
-          return name.contains(query) || location.contains(query);
-        }).toList();
-      }
+      filteredEvents = query.isEmpty
+          ? events
+          : events.where((e) {
+              final name = (e['event_name'] ?? e['name'] ?? '')
+                  .toString()
+                  .toLowerCase();
+              final loc = (e['event_location'] ?? e['location'] ?? '')
+                  .toString()
+                  .toLowerCase();
+              return name.contains(query) || loc.contains(query);
+            }).toList();
     });
   }
 
@@ -66,7 +64,7 @@ class _EventsListState extends State<EventsList> {
         sessionCookie: widget.sessionCookie,
       );
 
-      final status = response['status'];
+      final status    = response['status'];
       final isSuccess = status == 200 || status == '200';
 
       if (isSuccess) {
@@ -80,21 +78,20 @@ class _EventsListState extends State<EventsList> {
           extracted = response['events'];
         }
         setState(() {
-          events = extracted;
+          events         = extracted;
           filteredEvents = extracted;
-          loading = false;
+          loading        = false;
         });
       } else {
         setState(() {
-          events = [];
+          events         = [];
           filteredEvents = [];
-          loading = false;
+          loading        = false;
         });
       }
     } catch (e) {
       print("EVENT FETCH ERROR: $e");
       setState(() => loading = false);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Unable to load events.")),
@@ -129,10 +126,8 @@ class _EventsListState extends State<EventsList> {
               Navigator.pop(context);
               _logout();
             },
-            child: const Text(
-              "Log Out",
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text("Log Out",
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -147,10 +142,8 @@ class _EventsListState extends State<EventsList> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: CustomColors.lightGreyScaffold,
         appBar: AppBar(
           title: const Text("My Events"),
-          backgroundColor: CustomColors.primaryColor,
           automaticallyImplyLeading: false,
           actions: [
             IconButton(
@@ -160,31 +153,29 @@ class _EventsListState extends State<EventsList> {
             ),
           ],
         ),
-
         body: Column(
           children: [
 
-            // ── Search bar ─────────────────────────────────────────
+            // ── Search bar ──────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search events by name or location',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  hintStyle:
+                      TextStyle(color: Colors.grey[400], fontSize: 14),
                   prefixIcon: const Icon(Icons.search, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                          },
+                          onPressed: _searchController.clear,
                         )
                       : null,
                   filled: true,
-                  fillColor: Colors.white,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                  fillColor: Theme.of(context).cardColor,
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 0, horizontal: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -193,7 +184,7 @@ class _EventsListState extends State<EventsList> {
               ),
             ),
 
-            // ── Events list ─────────────────────────────────────────
+            // ── Events list ─────────────────────────────────────────────────
             Expanded(
               child: loading
                   ? const Center(child: CircularProgressIndicator())
@@ -225,7 +216,8 @@ class _EventsListState extends State<EventsList> {
         Text(
           isSearching ? "No matching events" : "No events assigned yet",
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Padding(
@@ -249,23 +241,39 @@ class _EventsListState extends State<EventsList> {
       itemBuilder: (context, index) {
         final Map event = filteredEvents[index];
 
-        final bookingsCount =
-            event['bookings_count'] ?? event['total_bookings'] ?? 0;
-
-        final String? rawBanner =
-            event['event_banner'] ?? event['banner'];
-
-        final String? bannerUrl = rawBanner != null && rawBanner.isNotEmpty
-            ? (rawBanner.startsWith('http')
-                ? rawBanner
-                : 'https://go.conferena.com/uploads/$rawBanner')
-            : null;
-
+        // ── Data extraction ────────────────────────────────────────────────
         final String eventName =
             event['event_name'] ?? event['name'] ?? "Event";
 
         final String location =
             event['event_location'] ?? event['location'] ?? "No location";
+
+        final int totalBookings = int.tryParse(
+                (event['bookings_count'] ??
+                        event['total_bookings'] ??
+                        0)
+                    .toString()) ??
+            0;
+
+        // Pull checked-in and pending from API if available
+        final int checkedIn = int.tryParse(
+                (event['checked_in'] ??
+                        event['scanned_count'] ??
+                        event['checked_in_count'] ??
+                        0)
+                    .toString()) ??
+            0;
+
+        final int pending = totalBookings - checkedIn;
+
+        final String? rawBanner =
+            event['event_banner'] ?? event['banner'];
+        final String? bannerUrl =
+            rawBanner != null && rawBanner.isNotEmpty
+                ? (rawBanner.startsWith('http')
+                    ? rawBanner
+                    : 'https://go.conferena.com/uploads/$rawBanner')
+                : null;
 
         return GestureDetector(
           onTap: () {
@@ -275,8 +283,9 @@ class _EventsListState extends State<EventsList> {
                 builder: (_) => ScanCode(
                   event: event,
                   token: widget.token,
-                  eventToken:
-                      event['ticket_scanning_token'] ?? event['token'] ?? '',
+                  eventToken: event['ticket_scanning_token'] ??
+                      event['token'] ??
+                      '',
                 ),
               ),
             );
@@ -284,7 +293,7 @@ class _EventsListState extends State<EventsList> {
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -297,71 +306,149 @@ class _EventsListState extends State<EventsList> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
+                // ── Banner with event name overlaid ────────────────────────
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
+                      top: Radius.circular(16)),
                   child: Stack(
                     children: [
-                      bannerUrl != null && bannerUrl.isNotEmpty
+                      // Banner image or placeholder
+                      bannerUrl != null
                           ? Image.network(
                               bannerUrl,
                               width: double.infinity,
                               height: 140,
                               fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _bannerPlaceholder(eventName),
                             )
-                          : _buildBannerPlaceholder(eventName),
+                          : _bannerPlaceholder(eventName),
+
+                      // Dark gradient so text is readable over any banner
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 70,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black87,
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Event name over gradient
+                      Positioned(
+                        bottom: 10,
+                        left: 12,
+                        right: 60,
+                        child: Text(
+                          eventName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                  blurRadius: 4,
+                                  color: Colors.black54),
+                            ],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // "Tap to Scan" badge (top-right)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: CustomColors.primaryColor,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.qr_code_scanner,
+                                  size: 13, color: Colors.white),
+                              SizedBox(width: 5),
+                              Text(
+                                'Tap to Scan',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
 
+                // ── Footer: location + booking stats ──────────────────────
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.location_on,
-                                size: 14, color: Colors.grey),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                location,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 13,
-                                ),
-                              ),
+                      // Location row
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on,
+                              size: 13, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              location,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 12),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color:
-                              CustomColors.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.people,
-                                size: 13,
-                                color: CustomColors.primaryColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              "$bookingsCount",
-                              style: TextStyle(
-                                color: CustomColors.primaryColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+
+                      const SizedBox(height: 10),
+
+                      // Stats row: Total | Checked-in | Pending
+                      Row(
+                        children: [
+                          _StatChip(
+                            icon: Icons.people,
+                            label: 'Total',
+                            value: '$totalBookings',
+                            color: CustomColors.primaryColor,
+                          ),
+                          const SizedBox(width: 8),
+                          _StatChip(
+                            icon: Icons.check_circle_outline,
+                            label: 'Checked in',
+                            value: '$checkedIn',
+                            color: const Color(0xFF1A7A4A),
+                          ),
+                          const SizedBox(width: 8),
+                          _StatChip(
+                            icon: Icons.hourglass_empty,
+                            label: 'Pending',
+                            value: pending > 0 ? '$pending' : '0',
+                            color: const Color(0xFF7A5A1A),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -374,15 +461,82 @@ class _EventsListState extends State<EventsList> {
     );
   }
 
-  Widget _buildBannerPlaceholder(String eventName) {
+  Widget _bannerPlaceholder(String eventName) {
     return Container(
       width: double.infinity,
       height: 140,
-      color: CustomColors.primaryColor.withOpacity(0.7),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            CustomColors.primaryColor.withOpacity(0.8),
+            CustomColors.primaryColor.withOpacity(0.4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Center(
-        child: Text(
-          eventName,
-          style: const TextStyle(color: Colors.white),
+        child: Icon(
+          Icons.event,
+          size: 48,
+          color: Colors.white.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Stat chip ─────────────────────────────────────────────────────────────────
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 11, color: color),
+                const SizedBox(width: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: color.withOpacity(0.7),
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

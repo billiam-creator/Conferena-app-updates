@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ticketkona/screens/home.dart';
 import 'package:ticketkona/screens/events_list.dart';
+import 'package:ticketkona/screens/onboarding_screen.dart';
 import 'package:ticketkona/services/session_manager.dart';
+import 'package:ticketkona/services/settings_manager.dart';
 import 'package:ticketkona/theme/colors.dart';
 import 'package:ticketkona/config.dart';
 
@@ -48,20 +50,30 @@ class _InitializerState extends State<Initializer>
   }
 
   Future<void> _checkSession() async {
+    // ── Check onboarding first ─────────────────────────────────────────────
+    final hasSeenOnboarding = await SettingsManager.hasSeenOnboarding();
+    if (!hasSeenOnboarding) {
+      await _animController.reverse();
+      if (!mounted) return;
+      // Show onboarding; it will call markOnboardingSeen then go to Home
+      Navigator.pushReplacement(
+        context,
+        _fadeRoute(const OnboardingScreen(fromHome: false)),
+      );
+      return;
+    }
+
+    // ── Check saved session ────────────────────────────────────────────────
     final session = await SessionManager.loadSession();
     if (!mounted) return;
 
     if (session != null) {
       print("ACTIVE SESSION FOUND — refreshing token");
-
-      // Always re-login with saved credentials to get a fresh token
-      // This prevents stale token issues
       final creds = await SessionManager.loadCredentials();
 
       if (creds != null &&
           creds['email'] != null &&
           creds['password'] != null) {
-
         print("RE-LOGGING IN WITH SAVED CREDENTIALS");
         try {
           final response = await http.post(
@@ -78,7 +90,6 @@ class _InitializerState extends State<Initializer>
             final newToken = data['access_token'] ?? data['token'] ?? '';
             print("TOKEN REFRESHED: $newToken");
 
-            // Get new session cookie
             String? newCookie;
             final rawCookie = response.headers['set-cookie'];
             if (rawCookie != null) {
@@ -86,12 +97,13 @@ class _InitializerState extends State<Initializer>
               newCookie = match?.group(1);
             }
 
-            // Try web login for cookie if not found
             if (newCookie == null) {
               try {
                 final webRes = await http.post(
                   Uri.parse(AppConfig.webLogin),
-                  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                  headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                  },
                   body: {
                     'identity': creds['email']!,
                     'password': creds['password']!,
@@ -99,7 +111,8 @@ class _InitializerState extends State<Initializer>
                 ).timeout(const Duration(seconds: 10));
                 final wRaw = webRes.headers['set-cookie'];
                 if (wRaw != null) {
-                  final m = RegExp(r'ci_session=([^;]+)').firstMatch(wRaw);
+                  final m =
+                      RegExp(r'ci_session=([^;]+)').firstMatch(wRaw);
                   newCookie = m?.group(1);
                 }
               } catch (_) {}
@@ -128,7 +141,7 @@ class _InitializerState extends State<Initializer>
         }
       }
 
-      // Fallback: use saved token if re-login failed
+      // Fallback: use saved token
       await _animController.reverse();
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -138,7 +151,6 @@ class _InitializerState extends State<Initializer>
           sessionCookie: session['sessionCookie'],
         )),
       );
-
     } else {
       print("NO SESSION — going to Home");
       await _animController.reverse();

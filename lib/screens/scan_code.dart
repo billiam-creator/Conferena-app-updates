@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ticketkona/services/event.dart';
+import 'package:ticketkona/services/feedback_service.dart';
 import 'package:ticketkona/theme/colors.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'dart:convert';
@@ -33,7 +34,7 @@ class _ScanCodeState extends State<ScanCode>
   String? bookingCount;
   String? lastScannedCode;
 
-  // Animation for result panel
+  // Result panel slide animation
   late AnimationController _animController;
   late Animation<Offset> _slideAnim;
 
@@ -65,9 +66,7 @@ class _ScanCodeState extends State<ScanCode>
     super.dispose();
   }
 
-  void _showResult() {
-    _animController.forward(from: 0);
-  }
+  void _showResult() => _animController.forward(from: 0);
 
   void _resetScan() {
     setState(() {
@@ -85,10 +84,10 @@ class _ScanCodeState extends State<ScanCode>
   Widget build(BuildContext context) {
     final sw = MediaQuery.of(context).size.width;
     final sh = MediaQuery.of(context).size.height;
-    final eventName = widget.event['event_name'] ??
-        widget.event['name'] ?? 'Event';
-    final location = widget.event['event_location'] ??
-        widget.event['location'] ?? '';
+    final eventName =
+        widget.event['event_name'] ?? widget.event['name'] ?? 'Event';
+    final location =
+        widget.event['event_location'] ?? widget.event['location'] ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFF111111),
@@ -96,11 +95,11 @@ class _ScanCodeState extends State<ScanCode>
         child: Stack(
           children: [
 
-            // ── Full dark background column ──────────────────────────
+            // ── Main column ────────────────────────────────────────────────
             Column(
               children: [
 
-                // ── Top bar ─────────────────────────────────────────
+                // Top bar
                 Padding(
                   padding: EdgeInsets.symmetric(
                       horizontal: sw * 0.03, vertical: 8),
@@ -121,7 +120,7 @@ class _ScanCodeState extends State<ScanCode>
                   ),
                 ),
 
-                // ── Event info ───────────────────────────────────────
+                // Event info
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: sw * 0.05),
                   child: Column(
@@ -165,7 +164,8 @@ class _ScanCodeState extends State<ScanCode>
                           color: CustomColors.primaryColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: CustomColors.primaryColor.withOpacity(0.4)),
+                              color:
+                                  CustomColors.primaryColor.withOpacity(0.4)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -191,7 +191,7 @@ class _ScanCodeState extends State<ScanCode>
 
                 SizedBox(height: sh * 0.02),
 
-                // ── Scan hint ────────────────────────────────────────
+                // Scan hint
                 Text(
                   'Point camera at QR code',
                   style: TextStyle(
@@ -202,20 +202,15 @@ class _ScanCodeState extends State<ScanCode>
 
                 SizedBox(height: sh * 0.015),
 
-                // ── QR Viewfinder ────────────────────────────────────
+                // QR Viewfinder
                 Expanded(
                   child: Stack(
                     children: [
-                      // Camera feed
                       QRView(
                         key: qrKey,
                         onQRViewCreated: _onQRViewCreated,
                       ),
-
-                      // Dark overlay with clear center
                       _ScanOverlay(size: sw * 0.65),
-
-                      // Validating overlay
                       if (validating)
                         Container(
                           color: Colors.black54,
@@ -247,7 +242,7 @@ class _ScanCodeState extends State<ScanCode>
               ],
             ),
 
-            // ── Sliding result panel ─────────────────────────────────
+            // ── Sliding result panel ───────────────────────────────────────
             if (valid != null || alreadyUsed != null)
               Positioned(
                 bottom: 0,
@@ -265,7 +260,6 @@ class _ScanCodeState extends State<ScanCode>
                   ),
                 ),
               ),
-
           ],
         ),
       ),
@@ -274,7 +268,7 @@ class _ScanCodeState extends State<ScanCode>
 
   void _onQRViewCreated(QRViewController ctrl) {
     controller = ctrl;
-    ctrl.scannedDataStream.listen((scanData) {
+    ctrl.scannedDataStream.listen((scanData) async {
       if (scanData.code != null && !validating) {
         ctrl.pauseCamera();
         setState(() {
@@ -285,8 +279,10 @@ class _ScanCodeState extends State<ScanCode>
           lastScannedCode = scanData.code;
         });
 
-        validateTicket(widget.eventToken, scanData.code as String)
-            .then((value) {
+        try {
+          final value =
+              await validateTicket(widget.eventToken, scanData.code!);
+
           if (value['status'] == 200) {
             var data;
             try {
@@ -298,47 +294,54 @@ class _ScanCodeState extends State<ScanCode>
             final int count =
                 int.tryParse(data['scan_count'].toString()) ?? 0;
 
-            setState(() {
-              validating = false;
-              if (count == 1) {
+            if (count == 1) {
+              setState(() {
+                validating = false;
                 valid = true;
                 alreadyUsed = false;
                 scanCount = data['scan_count'].toString();
-              } else {
+              });
+              await FeedbackService.onValid();        // ✅ sound + vibration
+            } else {
+              setState(() {
+                validating = false;
                 valid = false;
                 alreadyUsed = true;
                 scanCount = data['scan_count'].toString();
-              }
-            });
-            _showResult();
+              });
+              await FeedbackService.onAlreadyUsed(); // ✅ sound + vibration
+            }
           } else {
             setState(() {
               valid = false;
               alreadyUsed = false;
               validating = false;
             });
-            _showResult();
+            await FeedbackService.onInvalid();       // ✅ sound + vibration
           }
-        }).catchError((error) {
+          _showResult();
+        } catch (e) {
           setState(() => validating = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Network error. Please try again.'),
-              backgroundColor: Colors.red.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Network error. Please try again.'),
+                backgroundColor: Colors.red.shade700,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
       }
     });
   }
 
-  validateTicket(String token, String code) async {
+  Future<Map> validateTicket(String token, String code) async {
     return await EventService().validateTicket(token, code);
   }
 }
 
-// ── Nav button ───────────────────────────────────────────────────────────────
+// ── Nav button ────────────────────────────────────────────────────────────────
 class _NavButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -376,7 +379,7 @@ class _NavButton extends StatelessWidget {
   }
 }
 
-// ── Scan overlay with corner brackets ───────────────────────────────────────
+// ── Scan overlay ──────────────────────────────────────────────────────────────
 class _ScanOverlay extends StatelessWidget {
   final double size;
   const _ScanOverlay({required this.size});
@@ -401,18 +404,15 @@ class _OverlayPainter extends CustomPainter {
     final cy = canvasSize.height / 2;
     final half = size / 2;
 
-    // Draw dark overlay with clear center
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height))
       ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromCenter(
-            center: Offset(cx, cy), width: size, height: size),
+        Rect.fromCenter(center: Offset(cx, cy), width: size, height: size),
         const Radius.circular(12),
       ))
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(path, paint);
 
-    // Draw corner brackets
     final bracketPaint = Paint()
       ..color = const Color(0xFF01875f)
       ..strokeWidth = 3.5
@@ -420,9 +420,9 @@ class _OverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     const bracketLen = 24.0;
-    final left = cx - half;
-    final top = cy - half;
-    final right = cx + half;
+    final left   = cx - half;
+    final top    = cy - half;
+    final right  = cx + half;
     final bottom = cy + half;
     const r = 12.0;
 
@@ -431,8 +431,7 @@ class _OverlayPainter extends CustomPainter {
       Path()
         ..moveTo(left + r + bracketLen, top)
         ..lineTo(left + r, top)
-        ..arcToPoint(Offset(left, top + r),
-            radius: const Radius.circular(r))
+        ..arcToPoint(Offset(left, top + r), radius: const Radius.circular(r))
         ..lineTo(left, top + r + bracketLen),
       bracketPaint,
     );
@@ -472,7 +471,7 @@ class _OverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Result panel ─────────────────────────────────────────────────────────────
+// ── Result panel ──────────────────────────────────────────────────────────────
 class _ResultPanel extends StatelessWidget {
   final bool? valid;
   final bool? alreadyUsed;
@@ -499,23 +498,23 @@ class _ResultPanel extends StatelessWidget {
     String subtitle;
 
     if (valid == true) {
-      bgColor = const Color(0xFF1A7A4A);
+      bgColor   = const Color(0xFF1A7A4A);
       iconColor = const Color(0xFF4ADE80);
-      icon = Icons.check_circle_rounded;
-      title = 'Valid Ticket';
-      subtitle = 'Attendee checked in successfully';
+      icon      = Icons.check_circle_rounded;
+      title     = 'Valid Ticket';
+      subtitle  = 'Attendee checked in successfully';
     } else if (alreadyUsed == true) {
-      bgColor = const Color(0xFF7A5A1A);
+      bgColor   = const Color(0xFF7A5A1A);
       iconColor = const Color(0xFFFBBF24);
-      icon = Icons.warning_amber_rounded;
-      title = 'Already Used';
-      subtitle = 'This ticket has been scanned before';
+      icon      = Icons.warning_amber_rounded;
+      title     = 'Already Used';
+      subtitle  = 'This ticket has been scanned before';
     } else {
-      bgColor = const Color(0xFF7A1A1A);
+      bgColor   = const Color(0xFF7A1A1A);
       iconColor = const Color(0xFFF87171);
-      icon = Icons.cancel_rounded;
-      title = 'Invalid Ticket';
-      subtitle = 'This ticket is not valid for this event';
+      icon      = Icons.cancel_rounded;
+      title     = 'Invalid Ticket';
+      subtitle  = 'This ticket is not valid for this event';
     }
 
     return Container(
@@ -534,7 +533,6 @@ class _ResultPanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-
           // Handle bar
           Container(
             width: 40,
@@ -601,12 +599,15 @@ class _ResultPanel extends StatelessWidget {
                           const Text('Booking Code',
                               style: TextStyle(
                                   color: Colors.white54, fontSize: 11)),
-                          Text(scannedCode!,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1)),
+                          Text(
+                            scannedCode!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -617,11 +618,14 @@ class _ResultPanel extends StatelessWidget {
                         const Text('Scan count',
                             style: TextStyle(
                                 color: Colors.white54, fontSize: 11)),
-                        Text(scanCount!,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600)),
+                        Text(
+                          scanCount!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                 ],
@@ -646,8 +650,7 @@ class _ResultPanel extends StatelessWidget {
               icon: const Icon(Icons.qr_code_scanner, size: 18),
               label: const Text(
                 'Scan Next Ticket',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
           ),
