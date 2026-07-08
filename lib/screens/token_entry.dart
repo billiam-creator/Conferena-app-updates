@@ -93,9 +93,13 @@ class _TokenEntryState extends State<TokenEntry> {
     final w = media.size.width;
 
     final isSmall = h < 650;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : CustomColors.textBlack;
+    final subtitleColor = isDark ? Colors.grey[400]! : CustomColors.textGrey;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Falls back to Theme.of(context).scaffoldBackgroundColor so this
+      // screen respects dark mode instead of always being white.
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: LayoutBuilder(
@@ -132,7 +136,7 @@ class _TokenEntryState extends State<TokenEntry> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: isSmall ? 24 : 28,
-                          color: CustomColors.textBlack,
+                          color: titleColor,
                         ),
                       ),
 
@@ -142,7 +146,7 @@ class _TokenEntryState extends State<TokenEntry> {
                         "Enter the event scanning token to start validating tickets.",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: CustomColors.textGrey,
+                          color: subtitleColor,
                           fontSize: isSmall ? 14 : 16,
                         ),
                       ),
@@ -169,8 +173,10 @@ class _TokenEntryState extends State<TokenEntry> {
                               const Icon(Icons.vpn_key_outlined),
                           filled: true,
                           fillColor: errorMessage == null
-                              ? Colors.grey.shade100
-                              : Colors.red.shade50,
+                              ? Theme.of(context).cardColor
+                              : (isDark
+                                  ? Colors.red.shade900.withOpacity(0.25)
+                                  : Colors.red.shade50),
                           border: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.circular(12),
@@ -180,7 +186,9 @@ class _TokenEntryState extends State<TokenEntry> {
                                 BorderRadius.circular(12),
                             borderSide: BorderSide(
                               color: errorMessage == null
-                                  ? Colors.grey.shade300
+                                  ? (isDark
+                                      ? Colors.grey.shade700
+                                      : Colors.grey.shade300)
                                   : Colors.red,
                             ),
                           ),
@@ -270,8 +278,7 @@ class _TokenEntryState extends State<TokenEntry> {
                         icon: const Icon(Icons.arrow_back),
                         label: const Text("Go Back"),
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              CustomColors.textGrey,
+                          foregroundColor: subtitleColor,
                         ),
                       ),
 

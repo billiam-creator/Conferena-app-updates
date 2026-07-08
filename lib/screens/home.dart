@@ -27,7 +27,9 @@ class _HomeState extends State<Home> {
     return WillPopScope(
       onWillPop: () async => true,
       child: Scaffold(
-        backgroundColor: CustomColors.lightGreyScaffold,
+        // No hardcoded backgroundColor here — Scaffold falls back to
+        // Theme.of(context).scaffoldBackgroundColor automatically, which
+        // switches correctly between AppTheme.light() and AppTheme.dark().
         body: SafeArea(child: _pages[_selectedTab]),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedTab,
@@ -63,164 +65,188 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
-    final w = MediaQuery.of(context).size.width;
-    final isSmall = h < 640;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : CustomColors.textBlack;
+    final subtitleColor = isDark ? Colors.grey[400]! : CustomColors.textGrey;
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: w * 0.08,
-          vertical: isSmall ? 12 : 24,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Cap the max width on tablets/large screens so the layout still
+        // matches the phone-sized design instead of stretching everything.
+        final maxContentWidth =
+            constraints.maxWidth > 480 ? 480.0 : constraints.maxWidth;
+        final isSmall = constraints.maxHeight < 640;
 
-            // Brand text
-            RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: w / 14,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Arial',
-                ),
-                children: [
-                  TextSpan(
-                    text: 'CONFE',
-                    style: TextStyle(color: CustomColors.textBlack),
-                  ),
-                  TextSpan(
-                    text: 'RENA',
-                    style: TextStyle(color: CustomColors.primaryColor),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: isSmall ? 12 : h * 0.03),
-
-            // QR illustration card
-            Container(
-              padding: EdgeInsets.all(isSmall ? 14 : 24),
-              decoration: BoxDecoration(
-                color: CustomColors.primaryColor.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Image.asset(
-                'assets/images/qr_illustration.png',
-                width: isSmall ? w / 2.8 : w / 2.2,
-              ),
-            ),
-
-            SizedBox(height: isSmall ? 12 : h * 0.03),
-
-            Text(
-              'Conferena',
-              style: TextStyle(
-                color: CustomColors.textBlack,
-                fontSize: w / 18,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            SizedBox(height: isSmall ? 6 : 10),
-
-            Text(
-              'Scan the QR code on a ticket to confirm its validity.',
-              style: TextStyle(
-                color: CustomColors.textGrey,
-                fontSize: w / 28,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            SizedBox(height: isSmall ? 20 : h * 0.05),
-
-            // Scan with token button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CustomColors.primaryColor,
-                  foregroundColor: Colors.white,
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: SizedBox(
+                width: maxContentWidth,
+                child: Padding(
                   padding: EdgeInsets.symmetric(
-                      vertical: isSmall ? 12 : 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    horizontal: 24,
+                    vertical: isSmall ? 16 : 32,
                   ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TokenEntry()),
-                  );
-                },
-                icon: const Icon(Icons.qr_code_scanner),
-                label: Text(
-                  'SCAN WITH TOKEN',
-                  style: TextStyle(fontSize: w / 28),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+
+                      // Brand text
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Arial',
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'CONFE',
+                              style: TextStyle(color: titleColor),
+                            ),
+                            TextSpan(
+                              text: 'RENA',
+                              style: const TextStyle(
+                                  color: CustomColors.primaryColor),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: isSmall ? 20 : 32),
+
+                      // QR illustration card
+                      Container(
+                        padding: EdgeInsets.all(isSmall ? 20 : 28),
+                        decoration: BoxDecoration(
+                          color: CustomColors.primaryColor
+                              .withOpacity(isDark ? 0.16 : 0.08),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Image.asset(
+                          'assets/images/qr_illustration.png',
+                          width: isSmall ? 120 : 160,
+                        ),
+                      ),
+
+                      SizedBox(height: isSmall ? 20 : 32),
+
+                      Text(
+                        'Conferena',
+                        style: TextStyle(
+                          color: titleColor,
+                          fontSize: isSmall ? 20 : 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        'Scan the QR code on a ticket to confirm its validity.',
+                        style: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      SizedBox(height: isSmall ? 28 : 40),
+
+                      // Scan with token button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: CustomColors.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                                vertical: isSmall ? 12 : 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const TokenEntry()),
+                            );
+                          },
+                          icon: const Icon(Icons.qr_code_scanner),
+                          label: const Text(
+                            'SCAN WITH TOKEN',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: isSmall ? 12 : 16),
+
+                      // Organizer Login button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: CustomColors.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                                vertical: isSmall ? 12 : 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const LoginPage()),
+                            );
+                          },
+                          icon: const Icon(Icons.login),
+                          label: const Text(
+                            'ORGANIZER LOGIN',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: isSmall ? 8 : 14),
+
+                      // How It Works link
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const OnboardingScreen(fromHome: true),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.help_outline,
+                          size: 16,
+                          color: CustomColors.primaryColor,
+                        ),
+                        label: const Text(
+                          'How It Works',
+                          style:
+                              TextStyle(color: CustomColors.primaryColor),
+                        ),
+                      ),
+
+                    ],
+                  ),
                 ),
               ),
             ),
-
-            SizedBox(height: isSmall ? 10 : 16),
-
-            // Organizer Login button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CustomColors.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                      vertical: isSmall ? 12 : 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                  );
-                },
-                icon: const Icon(Icons.login),
-                label: Text(
-                  'ORGANIZER LOGIN',
-                  style: TextStyle(fontSize: w / 28),
-                ),
-              ),
-            ),
-
-            SizedBox(height: isSmall ? 6 : 14),
-
-            // How It Works link
-            TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const OnboardingScreen(fromHome: true),
-                  ),
-                );
-              },
-              icon: Icon(
-                Icons.help_outline,
-                size: 16,
-                color: CustomColors.primaryColor,
-              ),
-              label: Text(
-                'How It Works',
-                style: TextStyle(color: CustomColors.primaryColor),
-              ),
-            ),
-
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

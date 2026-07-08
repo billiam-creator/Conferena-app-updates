@@ -35,6 +35,8 @@ class _MyTextfieldState extends State<MyTextfield> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25.0),
       child: TextField(
@@ -42,10 +44,15 @@ class _MyTextfieldState extends State<MyTextfield> {
         obscureText: _obscured,
         autofillHints: widget.autofillHints,
         onChanged: widget.onChanged,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+        ),
         decoration: InputDecoration(
           enabledBorder: OutlineInputBorder(
             borderSide: BorderSide(
-              color: widget.hasError ? Colors.red.shade400 : Colors.white,
+              color: widget.hasError
+                  ? Colors.red.shade400
+                  : (isDark ? Colors.grey.shade700 : Colors.white),
             ),
           ),
           focusedBorder: OutlineInputBorder(
@@ -54,15 +61,17 @@ class _MyTextfieldState extends State<MyTextfield> {
               width: widget.hasError ? 1.5 : 1.0,
             ),
           ),
-          fillColor: widget.hasError ? Colors.red.shade50 : Colors.grey.shade200,
+          fillColor: widget.hasError
+              ? (isDark ? Colors.red.shade900.withOpacity(0.25) : Colors.red.shade50)
+              : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
           filled: true,
           hintText: widget.hintText,
-          hintStyle: TextStyle(color: Colors.grey[500]),
+          hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500]),
           suffixIcon: widget.obscureText
               ? IconButton(
                   icon: Icon(
                     _obscured ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey[600],
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
                   ),
                   onPressed: () => setState(() => _obscured = !_obscured),
                 )

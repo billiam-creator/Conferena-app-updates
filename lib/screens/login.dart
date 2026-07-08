@@ -281,8 +281,11 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[300],
+      // Falls back to Theme.of(context).scaffoldBackgroundColor so this
+      // screen respects dark mode instead of always being light grey.
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
@@ -323,7 +326,7 @@ class _LoginPageState extends State<LoginPage>
                   Text(
                     "Sign in",
                     style: TextStyle(
-                      color: Colors.grey[800],
+                      color: isDark ? Colors.white : Colors.grey[800],
                       fontSize: MediaQuery.of(context).size.height < 600 ? 22 : 28,
                       fontWeight: FontWeight.bold,
                     ),
@@ -333,7 +336,10 @@ class _LoginPageState extends State<LoginPage>
 
                   Text(
                     "Welcome back to Conferena",
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    style: TextStyle(
+                      color: isDark ? Colors.grey[400] : Colors.grey[700],
+                      fontSize: 14,
+                    ),
                   ),
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.025),
@@ -440,7 +446,12 @@ class _LoginPageState extends State<LoginPage>
                               activeColor: const Color(0xFFF82249),
                               onChanged: (val) => setState(() => savePassword = val ?? false),
                             ),
-                            const Text("Remember me"),
+                            Text(
+                              "Remember me",
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.grey[800],
+                              ),
+                            ),
                           ],
                         ),
                         TextButton(

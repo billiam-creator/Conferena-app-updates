@@ -53,8 +53,11 @@ class SupportPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: CustomColors.lightGreyScaffold,
+      // Falls back to Theme.of(context).scaffoldBackgroundColor so this
+      // screen respects dark mode instead of always being light grey.
       appBar: AppBar(
         title: const Text('Support'),
         backgroundColor: CustomColors.primaryColor,
@@ -70,11 +73,11 @@ class SupportPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 3),
                 ),
@@ -90,7 +93,7 @@ class SupportPage extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
-                    color: Colors.grey[500],
+                    color: isDark ? Colors.grey[400] : Colors.grey[500],
                   ),
                 ),
 
@@ -100,7 +103,13 @@ class SupportPage extends StatelessWidget {
                   children: [
                     Icon(Icons.phone, size: 18, color: CustomColors.primaryColor),
                     const SizedBox(width: 10),
-                    Text(phoneNumber, style: const TextStyle(fontSize: 15)),
+                    Text(
+                      phoneNumber,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: isDark ? Colors.white : CustomColors.textBlack,
+                      ),
+                    ),
                   ],
                 ),
 
@@ -111,7 +120,13 @@ class SupportPage extends StatelessWidget {
                     Icon(Icons.email_outlined,
                         size: 18, color: CustomColors.primaryColor),
                     const SizedBox(width: 10),
-                    Text(emailAddress, style: const TextStyle(fontSize: 15)),
+                    Text(
+                      emailAddress,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: isDark ? Colors.white : CustomColors.textBlack,
+                      ),
+                    ),
                   ],
                 ),
 
@@ -226,8 +241,10 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
-      color: filled ? CustomColors.primaryColor : Colors.white,
+      color: filled ? CustomColors.primaryColor : Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -240,7 +257,7 @@ class _ActionTile extends StatelessWidget {
                 ? []
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -271,7 +288,9 @@ class _ActionTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: filled ? Colors.white : CustomColors.textBlack,
+                        color: filled
+                            ? Colors.white
+                            : (isDark ? Colors.white : CustomColors.textBlack),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -279,7 +298,9 @@ class _ActionTile extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: filled ? Colors.white70 : Colors.grey,
+                        color: filled
+                            ? Colors.white70
+                            : (isDark ? Colors.grey[400] : Colors.grey),
                       ),
                     ),
                   ],
