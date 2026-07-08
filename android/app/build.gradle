@@ -77,6 +77,13 @@ android {
     }
 }
 
+// Must be outside android block
+configurations.all {
+    resolutionStrategy {
+        force 'com.google.zxing:core:3.3.0'
+    }
+}
+
 flutter {
     source '../..'
 }
