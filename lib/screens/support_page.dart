@@ -7,8 +7,8 @@ import 'package:ticketkona/theme/colors.dart';
 class SupportPage extends StatelessWidget {
   const SupportPage({super.key});
 
-  static const String phoneNumber = '+254700000000';
-  static const String emailAddress = 'support@conferena.com';
+  static const String phoneNumber = '+254 729 334564';
+  static const String emailAddress = 'digital@brainverse.co';
 
   // Uses Android's native Intent system via platform channel —
   // no extra package needed, avoids the url_launcher Gradle/Kotlin conflict.

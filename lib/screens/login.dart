@@ -316,12 +316,28 @@ class _LoginPageState extends State<LoginPage>
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.03),
 
-                  Image.asset(
-                    'assets/images/logo.png',
-                    height: MediaQuery.of(context).size.height * 0.12,
-                  ),
+// The logo has black elements (ring + text) on a
+// transparent background, so on a real dark background
+// those parts disappear. Give it a white card only in
+// dark mode so it stays fully legible either way.
+Container(
+  padding: isDark
+      ? const EdgeInsets.symmetric(
+          horizontal: 18, vertical: 12)
+      : EdgeInsets.zero,
+  decoration: isDark
+      ? BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        )
+      : null,
+  child: Image.asset(
+    'assets/images/logo.png',
+    height: MediaQuery.of(context).size.height * 0.12,
+  ),
+),
 
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+SizedBox(height: MediaQuery.of(context).size.height * 0.02),
 
                   Text(
                     "Sign in",
