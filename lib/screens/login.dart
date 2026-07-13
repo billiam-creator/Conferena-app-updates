@@ -287,24 +287,11 @@ class _LoginPageState extends State<LoginPage>
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.03),
 
-                  // ✅ White background so logo is visible in dark mode
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      height: MediaQuery.of(context).size.height * 0.1,
-                    ),
+                  // Uses logo_light.png / logo_dark.png depending on theme
+                  // (see _buildLogo below), so no white-card workaround needed.
+                  _buildLogo(
+                    context,
+                    height: MediaQuery.of(context).size.height * 0.1,
                   ),
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.02),

@@ -194,7 +194,7 @@ class _InitializerState extends State<Initializer>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/logo_light.png',
                       width: MediaQuery.of(context).size.width / 1.3,
                     ),
                   ],

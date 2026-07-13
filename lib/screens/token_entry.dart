@@ -110,24 +110,13 @@ class _TokenEntryState extends State<TokenEntry> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
 
-                      // ✅ White background so logo is visible in dark mode
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          height: isSmall ? 55 : 70,
-                        ),
+                      // Uses logo_light.png / logo_dark.png depending on
+                      // theme — no white-card workaround needed anymore.
+                      Image.asset(
+                        isDark
+                            ? 'assets/images/logo_dark.png'
+                            : 'assets/images/logo_light.png',
+                        height: isSmall ? 55 : 70,
                       ),
 
                       SizedBox(height: isSmall ? 22 : 32),
@@ -283,25 +272,5 @@ class _TokenEntryState extends State<TokenEntry> {
   void dispose() {
     tokenController.dispose();
     super.dispose();
-  }
-}
-
-class _LogoWidget extends StatelessWidget {
-  final double height;
-  const _LogoWidget({required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final img = Image.asset('assets/images/logo.png', height: height);
-    if (!isDark) return img;
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: img,
-    );
   }
 }
