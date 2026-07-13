@@ -4,11 +4,29 @@ import 'package:ticketkona/services/settings_manager.dart';
 import 'package:ticketkona/theme/colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  /// fromHome = true  → opened via "How It Works" link; just pop back
-  /// fromHome = false → first launch; navigate to Home after completion
+  /// fromHome = true  → opened via "How It Works"; shows as modal, just pops back
+  /// fromHome = false → first launch; navigates to Home after completion
   final bool fromHome;
 
   const OnboardingScreen({super.key, this.fromHome = false});
+
+  /// Show as a bottom sheet modal when called from within the app
+  static Future<void> showAsModal(BuildContext context) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.92,
+        minChildSize: 0.6,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: const OnboardingScreen(fromHome: true),
+        ),
+      ),
+    );
+  }
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -84,7 +102,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _finish() async {
     if (!widget.fromHome) {
-      // First-launch path: mark seen then go to Home
       await SettingsManager.markOnboardingSeen();
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -92,7 +109,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         MaterialPageRoute(builder: (_) => const Home()),
       );
     } else {
-      // "How It Works" path: just go back
       Navigator.pop(context);
     }
   }
@@ -102,26 +118,46 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextButton(
-                  onPressed: _skip,
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(color: Colors.grey),
+
+            // ── Header with title + skip ───────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
+              child: Row(
+                children: [
+                  // Title
+                  Expanded(
+                    child: Text(
+                      'How It Works',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
                   ),
-                ),
+                  // Skip / Close button
+                  TextButton(
+                    onPressed: _skip,
+                    child: Text(
+                      widget.fromHome ? 'Close' : 'Skip',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            // Slides
+            // Thin divider under header
+            Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : Colors.grey.shade200,
+            ),
+
+            // ── Slides ─────────────────────────────────────────────
             Expanded(
               child: PageView.builder(
                 controller: _controller,
@@ -132,7 +168,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // Dots + navigation buttons
+            // ── Dots + navigation ──────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: Column(
@@ -168,9 +204,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               curve: Curves.easeOut,
                             ),
                             style: OutlinedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              side: BorderSide(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(
                                   color: CustomColors.primaryColor),
                               foregroundColor: CustomColors.primaryColor,
                             ),
@@ -185,8 +220,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: CustomColors.primaryColor,
                             foregroundColor: Colors.white,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -199,7 +233,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           label: Text(
                             _currentPage == _slides.length - 1
-                                ? 'Get started'
+                                ? (widget.fromHome ? 'Done' : 'Get started')
                                 : 'Next',
                           ),
                         ),
@@ -216,7 +250,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-// ── Slide view ────────────────────────────────────────────────────────────────
+// ── Slide view ─────────────────────────────────────────────────────────────────
 class _SlideView extends StatelessWidget {
   final _OnboardSlide slide;
   const _SlideView({required this.slide});
@@ -230,11 +264,11 @@ class _SlideView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
           Text(
             slide.title,
             style: TextStyle(
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : Colors.black87,
             ),
@@ -261,7 +295,6 @@ class _SlideView extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Step number badge
                     Container(
                       width: 30,
                       height: 30,
@@ -290,8 +323,7 @@ class _SlideView extends StatelessWidget {
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color:
-                                  isDark ? Colors.white : Colors.black87,
+                              color: isDark ? Colors.white : Colors.black87,
                             ),
                           ),
                           Text(

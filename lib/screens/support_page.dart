@@ -7,20 +7,15 @@ import 'package:ticketkona/theme/colors.dart';
 class SupportPage extends StatelessWidget {
   const SupportPage({super.key});
 
-  static const String phoneNumber = '+254 729 334564';
+  static const String phoneNumber  = '+254 729 334564';
   static const String emailAddress = 'digital@brainverse.co';
-
-  // Uses Android's native Intent system via platform channel —
-  // no extra package needed, avoids the url_launcher Gradle/Kotlin conflict.
   static const _channel = MethodChannel('conferena/intent');
 
   Future<void> _openIntent(BuildContext context, String action, String data) async {
     try {
       await _channel.invokeMethod('open', {'action': action, 'data': data});
     } catch (e) {
-      if (context.mounted) {
-        _showLinkDialog(context, data);
-      }
+      if (context.mounted) _showLinkDialog(context, data);
     }
   }
 
@@ -54,14 +49,14 @@ class SupportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white54 : Colors.grey;
+    final labelColor = isDark ? Colors.white38 : Colors.grey[500];
 
     return Scaffold(
-      // Falls back to Theme.of(context).scaffoldBackgroundColor so this
-      // screen respects dark mode instead of always being light grey.
       appBar: AppBar(
         title: const Text('Support'),
-        backgroundColor: CustomColors.primaryColor,
-        foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
         elevation: 0,
       ),
@@ -69,11 +64,11 @@ class SupportPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
 
-          // ── Contact card ────────────────────────────────────────
+          // ── Contact card ──────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+              color: cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -93,7 +88,7 @@ class SupportPage extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
-                    color: isDark ? Colors.grey[400] : Colors.grey[500],
+                    color: labelColor,
                   ),
                 ),
 
@@ -103,13 +98,8 @@ class SupportPage extends StatelessWidget {
                   children: [
                     Icon(Icons.phone, size: 18, color: CustomColors.primaryColor),
                     const SizedBox(width: 10),
-                    Text(
-                      phoneNumber,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: isDark ? Colors.white : CustomColors.textBlack,
-                      ),
-                    ),
+                    Text(phoneNumber,
+                        style: TextStyle(fontSize: 15, color: textPrimary)),
                   ],
                 ),
 
@@ -120,13 +110,8 @@ class SupportPage extends StatelessWidget {
                     Icon(Icons.email_outlined,
                         size: 18, color: CustomColors.primaryColor),
                     const SizedBox(width: 10),
-                    Text(
-                      emailAddress,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: isDark ? Colors.white : CustomColors.textBlack,
-                      ),
-                    ),
+                    Text(emailAddress,
+                        style: TextStyle(fontSize: 15, color: textPrimary)),
                   ],
                 ),
 
@@ -138,7 +123,7 @@ class SupportPage extends StatelessWidget {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: CustomColors.primaryColor,
-                          side: BorderSide(color: CustomColors.primaryColor),
+                          side: const BorderSide(color: CustomColors.primaryColor),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         onPressed: () => _call(context),
@@ -164,7 +149,7 @@ class SupportPage extends StatelessWidget {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: CustomColors.primaryColor,
-                          side: BorderSide(color: CustomColors.primaryColor),
+                          side: const BorderSide(color: CustomColors.primaryColor),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         onPressed: () => _email(context),
@@ -174,7 +159,6 @@ class SupportPage extends StatelessWidget {
                     ),
                   ],
                 ),
-
               ],
             ),
           ),
@@ -183,37 +167,24 @@ class SupportPage extends StatelessWidget {
 
           _ActionTile(
             icon: Icons.headset_mic,
-            iconBg: CustomColors.primaryColor,
             title: 'Live Chat',
             subtitle: 'Chat with us now · powered by Tawk.to',
             filled: true,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChatScreen()),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatScreen()),
+            ),
           ),
 
           const SizedBox(height: 12),
 
           _ActionTile(
             icon: Icons.menu_book_outlined,
-            iconBg: CustomColors.primaryColor.withOpacity(0.1),
-            iconColor: CustomColors.primaryColor,
             title: 'How It Works',
             subtitle: 'Revisit the getting-started guide',
             filled: false,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const OnboardingScreen(fromHome: true),
-                ),
-              );
-            },
+            onTap: () => OnboardingScreen.showAsModal(context),
           ),
-
         ],
       ),
     );
@@ -222,8 +193,6 @@ class SupportPage extends StatelessWidget {
 
 class _ActionTile extends StatelessWidget {
   final IconData icon;
-  final Color iconBg;
-  final Color? iconColor;
   final String title;
   final String subtitle;
   final bool filled;
@@ -231,8 +200,6 @@ class _ActionTile extends StatelessWidget {
 
   const _ActionTile({
     required this.icon,
-    required this.iconBg,
-    this.iconColor,
     required this.title,
     required this.subtitle,
     required this.filled,
@@ -242,9 +209,11 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unfFilledCard = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
 
     return Material(
-      color: filled ? CustomColors.primaryColor : Theme.of(context).cardColor,
+      color: filled ? CustomColors.primaryColor : unfFilledCard,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -269,12 +238,14 @@ class _ActionTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: filled ? Colors.white24 : iconBg,
+                  color: filled
+                      ? Colors.white24
+                      : CustomColors.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: filled ? Colors.white : iconColor,
+                  color: filled ? Colors.white : CustomColors.primaryColor,
                   size: 22,
                 ),
               ),
@@ -288,9 +259,7 @@ class _ActionTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: filled
-                            ? Colors.white
-                            : (isDark ? Colors.white : CustomColors.textBlack),
+                        color: filled ? Colors.white : textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -300,7 +269,7 @@ class _ActionTile extends StatelessWidget {
                         fontSize: 12,
                         color: filled
                             ? Colors.white70
-                            : (isDark ? Colors.grey[400] : Colors.grey),
+                            : (isDark ? Colors.white38 : Colors.grey),
                       ),
                     ),
                   ],
@@ -309,7 +278,9 @@ class _ActionTile extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_ios,
                 size: 14,
-                color: filled ? Colors.white70 : Colors.grey[400],
+                color: filled
+                    ? Colors.white70
+                    : (isDark ? Colors.white30 : Colors.grey[400]),
               ),
             ],
           ),

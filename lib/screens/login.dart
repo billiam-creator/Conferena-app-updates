@@ -8,6 +8,7 @@ import '../widgets/my_textfield.dart';
 import 'package:ticketkona/screens/events_list.dart';
 import 'package:ticketkona/services/session_manager.dart';
 import 'package:ticketkona/config.dart';
+import 'package:ticketkona/theme/colors.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,12 +26,10 @@ class _LoginPageState extends State<LoginPage>
   bool isLoading    = false;
   bool savePassword = false;
 
-  // Inline error messages shown under each field
   String? emailError;
   String? passwordError;
   String? generalError;
 
-  // Shake animation for wrong credentials
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
 
@@ -67,10 +66,7 @@ class _LoginPageState extends State<LoginPage>
     });
   }
 
-  // Shake the form to signal wrong credentials
-  void _shake() {
-    _shakeController.forward(from: 0);
-  }
+  void _shake() => _shakeController.forward(from: 0);
 
   String? _extractSessionCookie(http.Response response) {
     final rawCookie = response.headers['set-cookie'];
@@ -79,7 +75,6 @@ class _LoginPageState extends State<LoginPage>
     return match?.group(1);
   }
 
-  // Client-side validation before hitting the server
   bool _validate() {
     bool valid = true;
     setState(() {
@@ -111,7 +106,6 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void _openForgotPassword() {
-    // Open browser using Android intent via platform channel
     const forgotPasswordUrl = '${AppConfig.baseUrl}/users/register/forgot_pass';
     showDialog(
       context: context,
@@ -149,10 +143,7 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void signUserIn() async {
-    if (!_validate()) {
-      _shake();
-      return;
-    }
+    if (!_validate()) { _shake(); return; }
 
     _clearErrors();
     setState(() => isLoading = true);
@@ -161,16 +152,11 @@ class _LoginPageState extends State<LoginPage>
     final password = passwordController.text.trim();
 
     try {
-
       final response = await http.post(
         Uri.parse(AppConfig.apiLogin),
         body: {'identity': email, 'password': password},
       ).timeout(const Duration(seconds: 15));
 
-      print("LOGIN STATUS: ${response.statusCode}");
-      print("LOGIN BODY: ${response.body}");
-
-      // Handle non-JSON response (e.g. server down / returning HTML)
       Map<String, dynamic> data;
       try {
         data = jsonDecode(response.body);
@@ -184,7 +170,6 @@ class _LoginPageState extends State<LoginPage>
       }
 
       if (response.statusCode == 200 && data["status"] == 200) {
-
         String token = data['access_token'] ?? data['token'] ?? '';
         String? sessionCookie = _extractSessionCookie(response);
 
@@ -196,9 +181,7 @@ class _LoginPageState extends State<LoginPage>
               body: {'identity': email, 'password': password},
             ).timeout(const Duration(seconds: 10));
             sessionCookie = _extractSessionCookie(webResponse);
-          } catch (e) {
-            print("Web login attempt failed: $e");
-          }
+          } catch (e) { print("Web login attempt failed: $e"); }
         }
 
         await SessionManager.saveSession(token: token, sessionCookie: sessionCookie);
@@ -216,26 +199,17 @@ class _LoginPageState extends State<LoginPage>
             builder: (_) => EventsList(token: token, sessionCookie: sessionCookie),
           ),
         );
-
       } else {
-
-        // Map server error messages to friendly field-level errors
         final serverMsg = (data['message'] ?? '').toString().toLowerCase();
         setState(() {
           if (serverMsg.contains('password')) {
             passwordError = "Incorrect password. Please try again.";
-          } else if (serverMsg.contains('email') ||
-                     serverMsg.contains('user') ||
-                     serverMsg.contains('account') ||
-                     serverMsg.contains('not found') ||
-                     serverMsg.contains('identity')) {
+          } else if (serverMsg.contains('email') || serverMsg.contains('user') ||
+                     serverMsg.contains('not found') || serverMsg.contains('identity')) {
             emailError = "No account found with this email.";
-          } else if (serverMsg.contains('credential') ||
-                     serverMsg.contains('invalid') ||
-                     serverMsg.contains('wrong')) {
+          } else if (serverMsg.contains('invalid') || serverMsg.contains('wrong')) {
             passwordError = "Incorrect email or password.";
           } else {
-            // Fallback — show server message or generic
             generalError = data['message'] ?? "Login failed. Please check your credentials.";
           }
           isLoading = false;
@@ -250,14 +224,12 @@ class _LoginPageState extends State<LoginPage>
         isLoading = false;
       });
       _shake();
-      return;
     } on http.ClientException {
       setState(() {
         generalError = "Unable to reach the server. Please check your connection.";
         isLoading = false;
       });
       _shake();
-      return;
     } on Exception catch (e) {
       setState(() {
         generalError = "Something went wrong. Please try again.";
@@ -265,7 +237,6 @@ class _LoginPageState extends State<LoginPage>
       });
       print("LOGIN EXCEPTION: $e");
       _shake();
-      return;
     }
 
     setState(() => isLoading = false);
@@ -282,17 +253,17 @@ class _LoginPageState extends State<LoginPage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? Colors.white : Colors.grey[800];
+    final textSecondary = isDark ? Colors.white60 : Colors.grey[700];
 
     return Scaffold(
-      // Falls back to Theme.of(context).scaffoldBackgroundColor so this
-      // screen respects dark mode instead of always being light grey.
+      // ✅ Uses theme scaffold color — works in both light and dark
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
             child: AnimatedBuilder(
               animation: _shakeAnimation,
               builder: (context, child) {
-                // Horizontal shake offset
                 final offset = _shakeController.isAnimating
                     ? 8 * (0.5 - (_shakeAnimation.value % 0.5)) * 4
                     : 0.0;
@@ -316,33 +287,32 @@ class _LoginPageState extends State<LoginPage>
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.03),
 
-// The logo has black elements (ring + text) on a
-// transparent background, so on a real dark background
-// those parts disappear. Give it a white card only in
-// dark mode so it stays fully legible either way.
-Container(
-  padding: isDark
-      ? const EdgeInsets.symmetric(
-          horizontal: 18, vertical: 12)
-      : EdgeInsets.zero,
-  decoration: isDark
-      ? BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        )
-      : null,
-  child: Image.asset(
-    'assets/images/logo.png',
-    height: MediaQuery.of(context).size.height * 0.12,
-  ),
-),
+                  // ✅ White background so logo is visible in dark mode
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: MediaQuery.of(context).size.height * 0.1,
+                    ),
+                  ),
 
-SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.02),
 
                   Text(
                     "Sign in",
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.grey[800],
+                      color: textPrimary,
                       fontSize: MediaQuery.of(context).size.height < 600 ? 22 : 28,
                       fontWeight: FontWeight.bold,
                     ),
@@ -352,32 +322,32 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
 
                   Text(
                     "Welcome back to Conferena",
-                    style: TextStyle(
-                      color: isDark ? Colors.grey[400] : Colors.grey[700],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: textSecondary, fontSize: 14),
                   ),
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.025),
 
-                  // ── General error banner ─────────────────────────
+                  // General error banner
                   if (generalError != null)
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 25),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        border: Border.all(color: Colors.red.shade200),
+                        color: isDark ? Colors.red.shade900.withOpacity(0.4) : Colors.red.shade50,
+                        border: Border.all(
+                            color: isDark ? Colors.red.shade700 : Colors.red.shade200),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
+                          Icon(Icons.error_outline, color: Colors.red.shade400, size: 18),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               generalError!,
-                              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                              style: TextStyle(
+                                  color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                                  fontSize: 13),
                             ),
                           ),
                         ],
@@ -386,7 +356,6 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
 
                   if (generalError != null) const SizedBox(height: 16),
 
-                  // ── Email field ──────────────────────────────────
                   AutofillGroup(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,19 +375,18 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                             padding: const EdgeInsets.only(left: 28, top: 5),
                             child: Row(
                               children: [
-                                Icon(Icons.info_outline, size: 13, color: Colors.red.shade600),
+                                Icon(Icons.info_outline,
+                                    size: 13, color: Colors.red.shade400),
                                 const SizedBox(width: 4),
-                                Text(
-                                  emailError!,
-                                  style: TextStyle(color: Colors.red.shade600, fontSize: 12),
-                                ),
+                                Text(emailError!,
+                                    style: TextStyle(
+                                        color: Colors.red.shade400, fontSize: 12)),
                               ],
                             ),
                           ),
 
                         const SizedBox(height: 14),
 
-                        // ── Password field ───────────────────────────
                         MyTextfield(
                           controller: passwordController,
                           hintText: 'Enter your password',
@@ -433,23 +401,21 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                             padding: const EdgeInsets.only(left: 28, top: 5),
                             child: Row(
                               children: [
-                                Icon(Icons.info_outline, size: 13, color: Colors.red.shade600),
+                                Icon(Icons.info_outline,
+                                    size: 13, color: Colors.red.shade400),
                                 const SizedBox(width: 4),
-                                Text(
-                                  passwordError!,
-                                  style: TextStyle(color: Colors.red.shade600, fontSize: 12),
-                                ),
+                                Text(passwordError!,
+                                    style: TextStyle(
+                                        color: Colors.red.shade400, fontSize: 12)),
                               ],
                             ),
                           ),
-
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 10),
 
-                  // ── Remember me & Forgot Password ───────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Column(
@@ -459,23 +425,21 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                           children: [
                             Checkbox(
                               value: savePassword,
-                              activeColor: const Color(0xFFF82249),
-                              onChanged: (val) => setState(() => savePassword = val ?? false),
+                              activeColor: CustomColors.primaryColor,
+                              onChanged: (val) =>
+                                  setState(() => savePassword = val ?? false),
                             ),
-                            Text(
-                              "Remember me",
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.grey[800],
-                              ),
-                            ),
+                            Text("Remember me",
+                                style: TextStyle(color: textPrimary)),
                           ],
                         ),
                         TextButton(
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.only(left: 12),
-                          ),
-                          onPressed: () => _openForgotPassword(),
-                          child: const Text("Forgot Password?"),
+                              padding: const EdgeInsets.only(left: 12)),
+                          onPressed: _openForgotPassword,
+                          child: const Text("Forgot Password?",
+                              style: TextStyle(
+                                  color: CustomColors.primaryColor)),
                         ),
                       ],
                     ),
@@ -484,11 +448,11 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                   SizedBox(height: MediaQuery.of(context).size.height * 0.02),
 
                   isLoading
-                      ? const CircularProgressIndicator()
+                      ? const CircularProgressIndicator(
+                          color: CustomColors.primaryColor)
                       : MyButton(onTap: signUserIn),
 
                   SizedBox(height: MediaQuery.of(context).size.height * 0.03),
-
                 ],
               ),
             ),
@@ -497,4 +461,12 @@ SizedBox(height: MediaQuery.of(context).size.height * 0.02),
       ),
     );
   }
+}
+
+Widget _buildLogo(BuildContext context, {double height = 90}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return Image.asset(
+    isDark ? 'assets/images/logo_dark.png' : 'assets/images/logo_light.png',
+    height: height,
+  );
 }

@@ -24,17 +24,17 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return WillPopScope(
       onWillPop: () async => true,
       child: Scaffold(
-        // No hardcoded backgroundColor here — Scaffold falls back to
-        // Theme.of(context).scaffoldBackgroundColor automatically, which
-        // switches correctly between AppTheme.light() and AppTheme.dark().
         body: SafeArea(child: _pages[_selectedTab]),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedTab,
           selectedItemColor: CustomColors.primaryColor,
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: isDark ? Colors.grey[500] : Colors.grey,
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           type: BottomNavigationBarType.fixed,
           onTap: (index) => setState(() => _selectedTab = index),
           items: const [
@@ -66,187 +66,168 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : CustomColors.textBlack;
-    final subtitleColor = isDark ? Colors.grey[400]! : CustomColors.textGrey;
+    final h = MediaQuery.of(context).size.height;
+    final w = MediaQuery.of(context).size.width;
+    final isSmall = h < 640;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Cap the max width on tablets/large screens so the layout still
-        // matches the phone-sized design instead of stretching everything.
-        final maxContentWidth =
-            constraints.maxWidth > 480 ? 480.0 : constraints.maxWidth;
-        final isSmall = constraints.maxHeight < 640;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white60 : Colors.black45;
 
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Center(
-              child: SizedBox(
-                width: maxContentWidth,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: isSmall ? 16 : 32,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: w * 0.08,
+          vertical: isSmall ? 16 : 28,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+
+            // ── CONFERENA brand text ──────────────────────────────
+            RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: w / 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'CONFE',
+                    style: TextStyle(color: textPrimary),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
+                  const TextSpan(
+                    text: 'RENA',
+                    style: TextStyle(color: CustomColors.primaryColor),
+                  ),
+                ],
+              ),
+            ),
 
-                      // Brand text
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Arial',
-                          ),
-                          children: [
-                            TextSpan(
-                              text: 'CONFE',
-                              style: TextStyle(color: titleColor),
-                            ),
-                            TextSpan(
-                              text: 'RENA',
-                              style: const TextStyle(
-                                  color: CustomColors.primaryColor),
-                            ),
-                          ],
-                        ),
-                      ),
+            SizedBox(height: isSmall ? 20 : h * 0.04),
 
-                      SizedBox(height: isSmall ? 20 : 32),
+            // ── QR icon card (matches design) ─────────────────────
+            Container(
+              width: w * 0.42,
+              height: w * 0.42,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1A3D2E)
+                    : CustomColors.primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Center(
+                child: Image.asset(
+                  'assets/images/qr_illustration.png',
+                  width: w * 0.28,
+                ),
+              ),
+            ),
 
-                      // QR illustration card
-                      Container(
-                        padding: EdgeInsets.all(isSmall ? 20 : 28),
-                        decoration: BoxDecoration(
-                          color: CustomColors.primaryColor
-                              .withOpacity(isDark ? 0.16 : 0.08),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Image.asset(
-                          'assets/images/qr_illustration.png',
-                          width: isSmall ? 120 : 160,
-                        ),
-                      ),
+            SizedBox(height: isSmall ? 20 : h * 0.04),
 
-                      SizedBox(height: isSmall ? 20 : 32),
+            // ── Title ─────────────────────────────────────────────
+            Text(
+              'Conferena',
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: w / 16,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
 
-                      Text(
-                        'Conferena',
-                        style: TextStyle(
-                          color: titleColor,
-                          fontSize: isSmall ? 20 : 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+            const SizedBox(height: 8),
 
-                      const SizedBox(height: 8),
+            // ── Subtitle ──────────────────────────────────────────
+            Text(
+              'Scan the QR code on a ticket to confirm its validity.',
+              style: TextStyle(
+                color: textSecondary,
+                fontSize: w / 26,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
 
-                      Text(
-                        'Scan the QR code on a ticket to confirm its validity.',
-                        style: TextStyle(
-                          color: subtitleColor,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+            SizedBox(height: isSmall ? 28 : h * 0.055),
 
-                      SizedBox(height: isSmall ? 28 : 40),
-
-                      // Scan with token button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: CustomColors.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                                vertical: isSmall ? 12 : 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const TokenEntry()),
-                            );
-                          },
-                          icon: const Icon(Icons.qr_code_scanner),
-                          label: const Text(
-                            'SCAN WITH TOKEN',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: isSmall ? 12 : 16),
-
-                      // Organizer Login button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: CustomColors.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                                vertical: isSmall ? 12 : 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const LoginPage()),
-                            );
-                          },
-                          icon: const Icon(Icons.login),
-                          label: const Text(
-                            'ORGANIZER LOGIN',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: isSmall ? 8 : 14),
-
-                      // How It Works link
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const OnboardingScreen(fromHome: true),
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.help_outline,
-                          size: 16,
-                          color: CustomColors.primaryColor,
-                        ),
-                        label: const Text(
-                          'How It Works',
-                          style:
-                              TextStyle(color: CustomColors.primaryColor),
-                        ),
-                      ),
-
-                    ],
+            // ── Organizer Login (primary action — matches design) ──
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CustomColors.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: isSmall ? 13 : 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                ),
+                icon: const Icon(Icons.login, size: 18),
+                label: Text(
+                  'Organizer Login',
+                  style: TextStyle(
+                    fontSize: w / 26,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+
+            const SizedBox(height: 12),
+
+            // ── Scan with token (secondary action) ────────────────
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CustomColors.primaryColor,
+                  side: const BorderSide(
+                      color: CustomColors.primaryColor, width: 1.5),
+                  padding: EdgeInsets.symmetric(vertical: isSmall ? 13 : 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TokenEntry()),
+                ),
+                icon: const Icon(Icons.qr_code_scanner, size: 18),
+                label: Text(
+                  'Scan with Token',
+                  style: TextStyle(
+                    fontSize: w / 26,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── How It Works ──────────────────────────────────────
+            TextButton.icon(
+              onPressed: () => OnboardingScreen.showAsModal(context),
+              icon: Icon(Icons.help_outline,
+                  size: 15, color: CustomColors.primaryColor),
+              label: Text(
+                'How It Works',
+                style: TextStyle(
+                  color: CustomColors.primaryColor,
+                  fontSize: w / 28,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
