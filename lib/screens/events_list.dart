@@ -264,7 +264,14 @@ class _EventsListState extends State<EventsList> {
                     .toString()) ??
             0;
 
-        final int pending = totalBookings - checkedIn;
+        // Prefer the pending count scraped directly from the booking page
+        // (event['pending_count']) — total is not simply
+        // confirmed + pending + free, so deriving pending as
+        // totalBookings - checkedIn gives the wrong number. Only fall back
+        // to that subtraction if the server didn't give us pending directly.
+        final int pending = event['pending_count'] != null
+            ? int.tryParse(event['pending_count'].toString()) ?? 0
+            : (totalBookings - checkedIn).clamp(0, totalBookings);
 
         final String? rawBanner =
             event['event_banner'] ?? event['banner'];

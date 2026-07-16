@@ -64,16 +64,39 @@ class EventService {
               r'Total Tickets Booked[\s\S]*?<span>\s*(\d+)\s*<\/span>',
             ).firstMatch(html);
 
+            // Parse "Confirmed Tickets" (checked-in count) from HTML
+            final confirmedMatch = RegExp(
+              r'Confirmed Tickets[\s\S]*?<span>\s*(\d+)\s*<\/span>',
+            ).firstMatch(html);
+
+            // Parse "Pending Tickets" directly rather than deriving it —
+            // total is not simply confirmed + pending + free, so
+            // subtracting client-side gives the wrong number.
+            final pendingMatch = RegExp(
+              r'Pending Tickets[\s\S]*?<span>\s*(\d+)\s*<\/span>',
+            ).firstMatch(html);
+
             final total = totalMatch != null
                 ? int.tryParse(totalMatch.group(1)?.trim() ?? '0') ?? 0
                 : 0;
 
-            print("PARSED BOOKING COUNT FOR $eventId: $total");
+            final confirmed = confirmedMatch != null
+                ? int.tryParse(confirmedMatch.group(1)?.trim() ?? '0') ?? 0
+                : null;
+
+            final pending = pendingMatch != null
+                ? int.tryParse(pendingMatch.group(1)?.trim() ?? '0') ?? 0
+                : null;
+
+            print(
+                "PARSED FOR $eventId — total: $total, confirmed: $confirmed, pending: $pending");
 
             if (total > 0) {
               return {
                 ...Map<String, dynamic>.from(event),
                 'bookings_count': total,
+                if (confirmed != null) 'checked_in_count': confirmed,
+                if (pending != null) 'pending_count': pending,
               };
             }
           }

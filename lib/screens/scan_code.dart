@@ -508,7 +508,7 @@ class _ResultPanel extends StatelessWidget {
       iconColor = const Color(0xFFFBBF24);
       icon      = Icons.warning_amber_rounded;
       title     = 'Already Used';
-      subtitle  = 'This ticket has been scanned before';
+      subtitle  = 'This ticket is already checked in...';
     } else {
       bgColor   = const Color(0xFF7A1A1A);
       iconColor = const Color(0xFFF87171);
